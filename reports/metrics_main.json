@@ -1,11 +1,13 @@
 {
   "data_sha256": "a1f900001e2b",
+  "details": {
+    "fn": 13,
+    "fp": 25,
+    "log_loss": 0.08873
+  },
   "metrics": {
     "brier": 0.025565,
     "cost": 90,
-    "fn": 13,
-    "fp": 25,
-    "log_loss": 0.08873,
     "pr_auc": 0.724853,
     "roc_auc": 0.980124
   },

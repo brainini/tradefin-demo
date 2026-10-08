@@ -55,17 +55,17 @@ def main() -> None:
     fn = int(((~flagged) & (y == 1)).sum())
     fp = int((flagged & (y == 0)).sum())
 
+    # metrics = PR에서 기준과 견주는 네 지표 · details = 참고용 숫자(놓침 · 오경보 · 로그손실)
     metrics = {
         "roc_auc": roc_auc_score(y, p),
         "pr_auc": average_precision_score(y, p),
         "brier": brier_score_loss(y, p),
-        "log_loss": log_loss(y, p),
         "cost": cost["fn"] * fn + cost["fp"] * fp,
-        "fn": fn,
-        "fp": fp,
     }
+    details = {"fn": fn, "fp": fp, "log_loss": log_loss(y, p)}
     result = {
         "metrics": {k: (round(float(v), 6) if isinstance(v, float) else int(v)) for k, v in metrics.items()},
+        "details": {k: (round(float(v), 6) if isinstance(v, float) else int(v)) for k, v in details.items()},
         "sizes": {"train_rows": len(train), "test_rows": len(test), "test_late": int(y.sum())},
         "params": params["model"],
         "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest()[:12],
