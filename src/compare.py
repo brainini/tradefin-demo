@@ -25,6 +25,12 @@ def delta(new: float, base: float, digits: int = 4) -> str:
     return f"{d:+.{digits}f}" if d else f"{0:.{digits}f}"      # -0.0000 대신 0.0000
 
 
+def annotate(level: str, title: str, message: str) -> None:
+    """GitHub Actions 워크플로 명령. 표준 오류로 내보내면 Annotations 칸에 줄이 생긴다(줄바꿈은 %0A)."""
+    msg = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    print(f"::{level} title={title}::{msg}", file=sys.stderr)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", required=True, help="기준 지표 JSON (main의 reports/metrics_main.json)")
@@ -71,8 +77,16 @@ def main() -> int:
         lines += ["세 게이트를 모두 넘었습니다. 병합해도 됩니다 — 병합 버튼은 사람이 누릅니다.", ""]
     print("\n".join(lines))
 
-    for r in reasons:                       # Actions 화면의 Annotations 칸에 한 줄씩 뜬다
-        print(f"::error title=품질 게이트 실패::{r}", file=sys.stderr)
+    # Actions 화면의 Annotations 칸(로그인 없이도 보인다)에 결과를 남긴다: 실패한 게이트마다 한 줄, 그리고 기준 → 이 PR 네 지표
+    for r in reasons:
+        annotate("error", "품질 게이트 실패", r)
+    table = [
+        f"ROC-AUC {base['roc_auc']:.4f} → {new['roc_auc']:.4f} (참고)",
+        f"PR-AUC {base['pr_auc']:.4f} → {new['pr_auc']:.4f} ({'통과' if ok['pr_auc'] else '실패'})",
+        f"Brier {base['brier']:.4f} → {new['brier']:.4f} ({'통과' if ok['brier'] else '실패'})",
+        f"비용 {base['cost']} → {new['cost']} ({'통과' if ok['cost'] else '실패'})",
+    ]
+    annotate("notice", "기준(main) → 이 PR", "\n".join(table))
     return 0 if passed else 1
 
 
