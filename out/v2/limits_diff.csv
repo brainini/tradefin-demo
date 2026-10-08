@@ -1,0 +1,4 @@
+buyer_id,limit_before_usd,limit_after_usd,change_usd,cut_pct,approval
+SB01,90000,60000,-30000,33.3,승인 필요
+SB07,100000,0,-100000,100.0,승인 필요
+SB08,80000,60000,-20000,25.0,

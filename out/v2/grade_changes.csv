@@ -1,0 +1,4 @@
+buyer_id,grade_before,grade_after,pd_before,pd_after
+SB01,A,B,0.0700,0.0910
+SB07,S,C,0.0400,1.0000
+SB08,A,B,0.0700,0.0910
