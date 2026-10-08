@@ -46,6 +46,19 @@ def test_ccy_map_format():
     assert not bad, f"clean 값이 4종 + UNKNOWN 밖이거나 칸 수가 다른 줄: {bad}"
 
 
+def test_ccy_map_blank_is_unknown_and_covers_raw():
+    path = RULES / "ccy_map.csv"
+    if not path.exists():
+        pytest.skip("rules/ccy_map.csv 없음 — 아직 만들기 전")
+    with path.open(encoding="utf-8", newline="") as f:
+        mapping = {r["raw"]: r["clean"] for r in csv.DictReader(f)}
+    assert mapping.get("") == "UNKNOWN", "빈 통화는 UNKNOWN으로 매핑해야 한다"
+    raw_path = ROOT / "data" / "day1" / "d1_buyers_raw.csv"
+    with raw_path.open(encoding="utf-8-sig", newline="") as f:
+        used = {(r["ar_currency"] or "") for r in csv.DictReader(f)}
+    assert not used - mapping.keys(), f"매핑표에 없는 표기: {used - mapping.keys()}"
+
+
 def test_rules_doc_has_change_log():
     text = (RULES / "정제규칙.md").read_text(encoding="utf-8")
     assert "## 9. 변경 기록" in text
