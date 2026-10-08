@@ -11,7 +11,7 @@ import pandas as pd
 from matplotlib import font_manager
 
 AS_OF = pd.Timestamp("2026-09-30")
-LATE_DAYS = 30
+LATE_DAYS = 60
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data/day1/d1_invoices.csv"
@@ -23,7 +23,7 @@ COL_METHOD = "결제방식"
 COL_COUNT = "인보이스 수"
 COL_TOTAL = "금액 합계(USD)"
 COL_OPEN = "미결(status=open) 금액(USD)"
-COL_LATE = "30일 초과 연체 비율"
+COL_LATE = f"{LATE_DAYS}일 초과 연체 비율"
 
 
 def load() -> pd.DataFrame:
