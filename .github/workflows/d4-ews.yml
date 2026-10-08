@@ -10,7 +10,7 @@ on:
 permissions: {contents: read, issues: write}
 jobs:
   ews:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
