@@ -110,3 +110,10 @@ rag/corpus/*약관*
 .claude/worktrees/
 # tools/get_day_files.py가 받다가 멈춘 임시 파일
 *.part
+
+# ── 6. 3일차 시연(실험 기록 · 품질 게이트) — 실행할 때마다 새로 만드는 것 ─────────────
+# MLflow 실행 기록 · 이 PC에서 돌린 학습 결과(기준 지표 reports/metrics_main.json은 커밋한다)
+mlruns/
+mlartifacts/
+mlflow.db
+reports/metrics.json
