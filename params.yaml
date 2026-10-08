@@ -1,0 +1,19 @@
+# 3일차 시연 — 학습 설정. 코드 밖으로 뺀 값이라, 설정만 바꾼 PR은 diff 몇 줄로 보인다.
+data:
+  path: data/panel_synthetic.csv   # 가상(합성) 바이어-월 패널 — 실데이터 아님
+  label: late_30d
+  split_col: split_suggested       # train = 2024-03~2025-12, test = 2026-01~08
+random_state: 42
+cost:
+  fn: 5                            # 놓친 연체 1건의 비용
+  fp: 1                            # 잘못 울린 경보 1건의 비용
+  threshold: 0.1667                # fp / (fp + fn) = 1/6
+# 기준(main) 설정 — 이 아래 일곱 줄을 바꾸면 모델이 달라진다
+model:
+  n_estimators: 300
+  learning_rate: 0.03
+  num_leaves: 7
+  min_child_samples: 30
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_lambda: 5

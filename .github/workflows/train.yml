@@ -1,0 +1,34 @@
+# 품질 게이트 — PR이 설정 · 코드 · 데이터를 바꾸면 GitHub 서버가 같은 데이터로 다시 학습해
+# 기준 모델(main의 reports/metrics_main.json)과 비교한다. 결과 요약표는 Actions 화면의 job summary에 뜬다.
+# 게이트를 못 넘으면 이 검사(train-check)가 ✗가 된다. 병합 여부는 사람이 정한다.
+name: train
+
+on:
+  pull_request:
+    paths:
+      - params.yaml
+      - "src/**"
+      - "data/**"
+      - ".github/workflows/train.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  train-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+      - name: 환경 만들기 (uv.lock 그대로)
+        run: uv sync --frozen
+      - name: 같은 데이터로 다시 학습
+        run: uv run python src/train.py --params params.yaml --out reports/metrics.json
+      - name: 기준 모델과 비교 (품질 게이트)
+        # 요약표는 Actions 화면의 job summary에 쓰고, 같은 표를 로그에도 남긴다(gh run view --log 로 읽을 수 있게).
+        run: |
+          set -o pipefail
+          uv run python src/compare.py --base reports/metrics_main.json --new reports/metrics.json | tee -a "$GITHUB_STEP_SUMMARY"
