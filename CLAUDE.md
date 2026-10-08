@@ -1,4 +1,4 @@
-# CLAUDE.md — tradefin-kit-T{조}
+# CLAUDE.md — tradefin-kit-T0
 
 - 데이터: 가상 한빛정밀 데이터만 · 실명 · 이메일 · 키 금지
 - 흐름: data/ → app/pipeline/ → out/ → docs/ · sop/ · roi/
@@ -10,7 +10,11 @@
 - 처음 한 번 `uv sync` — `.venv`(Python 3.13)를 `uv.lock` 그대로 만든다. 실행은 `uv run python app/pipeline/…`.
 - 그날 파일 받기: `uv run python tools/get_day_files.py 6` (공개 시각마다 다시 실행하면 새로 공개된 파일만 더 온다).
 
-## 우리 팀 규칙 (10시 첫 5분에 3줄을 적는다)
-- {예: data/의 원본은 고치지 않고 out/에 새 파일로 쓴다}
-- {…}
-- {…}
+## 우리 팀 규칙
+- data/input/ 의 원본은 고치지 않고 out/ 에 새 파일로 쓴다
+- 비공개 입력(cards/ · local/ · data/input/v2_demo_open_inv.csv)은 커밋하지 않는다
+- 글에는 저장소 기준 상대 경로만 쓴다(홈 폴더 · 절대 경로 금지)
+
+## 이 시연 저장소 전용
+- 이 저장소에서 '기준 브랜치(main)'는 `d6-kit-t0` 이다. GitHub의 main은 공유 시연 저장소의 다른 시연 몫이라 쓰지 않는다.
+  PR 대상 · 릴리스 대상 · `git pull`/`git switch`는 모두 `d6-kit-t0`로 읽는다.
