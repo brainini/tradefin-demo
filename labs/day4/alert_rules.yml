@@ -1,0 +1,38 @@
+stages: {D-3: [-3, -1], D+7: [7, 14], D+15: [15, 29], D+30: [30, null]}
+rules:
+  - id: R-D30-HOLD
+    tier: P2
+    when: "dpd >= 30 and payment_method not in ['LC_SIGHT', 'LC_USANCE', 'TT_ADV']"
+    action: "선적 보류 권고(사람 승인 전)"
+  - id: R-KSURE-NOTICE-SOON
+    tier: P2
+    when: "ksure_insured == 'Y' and dpd > 0 and 0 <= notice_days_left <= 10"
+    action: "사고발생통지 여부 결정 요청"
+  - id: R-KSURE-NOTICE-OVERDUE
+    tier: P2
+    when: "ksure_insured == 'Y' and dpd > 0 and notice_days_left < 0"
+    action: "통지 기한 경과 - 보험사 확인 요청"
+  - id: R-CREDIT-EVENT
+    tier: P1
+    scope: buyer
+    when: "bankruptcy_flag == 1"
+    action: "신용사건 - 신규 선적 중단 · 채권 보전 검토 권고(사람 승인 전)"
+  - id: R-FRAUD-ACCOUNT
+    tier: P1
+    when: "bank_change_request == 'Y'"
+    action: "계좌 변경 요청 - 콜백 확인 전 송금 보류 권고(사람 승인 전)"
+  - id: R-TERMS-CHANGE
+    tier: P3
+    when: "terms_change_date != ''"
+    action: "결제조건 변경 - 보험 영향 확인 요청"
+  - id: R-PD-WATCH
+    tier: P4
+    scope: buyer
+    when: "pd_30d >= threshold_used"
+    action: "연체 가능성 높음 - 모니터링 강화 권고"
+
+# 선적 보류 목록에 모으는 규칙 · 사고발생통지 기한 = 결제기일 + notice_months 개월
+ship_hold_rules: [R-D30-HOLD, R-CREDIT-EVENT]
+notice_months: 1
+# 등급의 뜻
+tiers: {P1: 즉시, P2: 당일, P3: 이번 주, P4: 관찰}
