@@ -81,10 +81,11 @@ def render_body(s: dict, info: dict, sha: str) -> str:
     st = " · ".join(f"{k} {v['count']}건 {money(v['amount_usd'])}" for k, v in s["stages"].items())
     hold = s["ship_hold"]
     return "\n".join([
-        f"**기준일 {s['asof']}** · 미결 {s['open_invoices']}건 · 바이어 {s['buyers']}곳 - 아래는 모두 **{RECO}** 입니다. 결정과 실행은 담당자가 합니다.", "",
+        f"**기준일 {s['asof']}** · 미결 {s['open_invoices']}건 · 바이어 {s['buyers']}곳",
+        f"아래는 모두 **{RECO}** 입니다. 결정과 실행은 담당자가 합니다.", "",
         *rows, "",
         f"**연체 단계(USD)** {st}", "",
-        f"**선적 보류 {RECO} {hold['count']}곳** " + (" · ".join(hold["buyers"]) or "해당 없음"), "",
+        f"**선적 보류 {RECO} {hold['count']}곳**", " · ".join(hold["buyers"]) or "해당 없음", "",
         f"**사고발생통지** 임박 {s['notice']['soon_invoices']}건 · 경과 {s['notice']['overdue_invoices']}건 (보험 가입 건만, 기한 = 결제기일 + 1개월)", "",
         f"실행 {run_link(info)} · 이벤트 `{info['event']}` · {info['hm']} KST · 결과 파일은 아티팩트 `alerts`",
         f"<!-- ews:v1 asof={s['asof']} sha={sha} -->", ""])
@@ -92,7 +93,7 @@ def render_body(s: dict, info: dict, sha: str) -> str:
 
 def render_comment(info: dict, n: int, same: bool, s: dict, sha: str) -> str:
     head = "예약 실행" if info["event"] == "schedule" else "다시 실행"
-    verdict = (f"결과 동일(해시 `{sha}`) - 이슈는 하나, 댓글만 더합니다." if same
+    verdict = (f"결과 동일(해시 `{sha}`) — 이슈는 하나, 댓글만 더합니다." if same
                else f"**결과가 달라져** 이슈 본문을 새 결과로 고쳤습니다(해시 `{sha}`).")
     if info["event"] == "schedule":
         second = (f"예약 {info['scheduled']}(cron `{info['cron']}`, UTC) → 실제 실행 {info['hm']} KST · 실행 {run_link(info)}"
