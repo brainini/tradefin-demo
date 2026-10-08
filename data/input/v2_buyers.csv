@@ -1,0 +1,13 @@
+buyer_id,buyer_name,country,grade_before,pd_30d,limit_before_usd
+SB01,Demo Buyer 01,US,A,0.0700,90000
+SB02,Demo Buyer 02,US,S,0.0200,120000
+SB03,Demo Buyer 03,DE,B,0.1200,60000
+SB04,Demo Buyer 04,US,B,0.1100,60000
+SB05,Demo Buyer 05,VN,C,0.2000,30000
+SB06,Demo Buyer 06,JP,S,0.0300,120000
+SB07,Demo Buyer 07,US,S,0.0400,100000
+SB08,Demo Buyer 08,US,A,0.0700,80000
+SB09,Demo Buyer 09,MX,B,0.1500,50000
+SB10,Demo Buyer 10,DE,A,0.0500,90000
+SB11,Demo Buyer 11,IN,B,0.1300,55000
+SB12,Demo Buyer 12,TH,C,0.2200,25000
