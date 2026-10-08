@@ -1,0 +1,20 @@
+# 데이터 검증 — PR이 열리거나 새 커밋이 올라올 때마다 GitHub 서버가 같은 검사를 돌린다.
+# 결과는 PR 화면 아래에 ✓/✗로 붙는다. 보호 규칙은 켜지 않는다(✗여도 머지 버튼은 눌린다).
+name: validate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: 환경 만들기 (uv.lock 그대로)
+        run: uv sync --frozen
+      - name: 데이터 검증 테스트
+        run: uv run pytest -q
