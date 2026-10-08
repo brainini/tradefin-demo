@@ -27,3 +27,8 @@ Thumbs.db
 
 # Claude Code worktree 작업대
 .claude/worktrees/
+
+# 비공개 입력 — 저장소에 올리지 않는다(어디서 받아 어디에 두는지는 README 3항)
+cards/
+local/
+data/input/v2_demo_open_inv.csv
