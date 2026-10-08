@@ -1,0 +1,112 @@
+# tradefin-ai-2026 — .gitignore (공개 저장소 기준)
+# 이 폴더에서 `git add -A` 를 해도 정답·원천·비밀값이 공개 저장소에 올라가지 않게 하는 '안전한 기본값'이다.
+# 공개 범위·공개 시각은 README.md의 '공개 범위' 절을 따른다.
+# 주의: .gitignore는 줄 끝 주석을 지원하지 않는다 — 설명은 항상 패턴 위 줄에 쓴다.
+# 확인: `git check-ignore -v <경로>` (어느 줄 때문에 빠지는지 보여 준다)
+
+# ── 1. 비밀값·개인 데이터 (영구) ─────────────────────────────────────
+# 이 저장소를 템플릿으로 만든 개인 저장소(workbench/)·팀 저장소에도 그대로 따라간다.
+# 단, GitHub 웹 화면의 'Upload files'는 .gitignore와 관계없이 올린다 — 올리기 전에 파일을 직접 확인한다.
+secrets.toml
+.streamlit/secrets.toml
+.env
+.env.*
+data/private/
+# 어느 폴더든 private/ 폴더와 이름에 _private가 든 파일(자사 자료·익명화 대응표 등)
+private/
+*_private*
+*.local.*
+
+# ── 2. 정답·원천 — 과정이 끝날 때(2026-10-21 18:00)까지 공개하지 않는다 ──────
+# 그날 공개할 체크포인트만 공개 시각에 `git add -f <경로>` 로 하나씩 올린다(강제 추가한 파일은 그 뒤 계속 추적된다).
+# 과정이 끝나면 이 절의 줄을 지우고 원천·생성기를 공개한다(정답지·강사 자료는 3절이라 계속 빠진다).
+#
+# 생성기 원천(숨은 등급·부도·시나리오 역할 같은 정답 컬럼과 오염 기록이 들어 있다)
+data/raw/
+# 다음 날 체크포인트(d2_start 등)·그날 저녁 정답본(dN_end 등) — Day N 08:30에 `git add -f data/checkpoints/dN_start.xlsx`
+data/checkpoints/d[2-6]_*
+data/checkpoints/d1_end*
+# Day1 정답 차트·표(정제 150개사 피벗 수치) — 사이트 빌드에서도 빠져 있다(mkdocs.yml exclude_docs)
+docs/assets/day1/
+# 오염 주입 계획·시나리오 역할(사기·오탐 등)·정답 문구가 들어 있는 생성기와 설정 — 코드 공개는 과정 종료 뒤
+tools/config.yaml
+tools/generate_data.py
+tools/build_checkpoints.py
+tools/day1_expected.py
+tools/build_day1_template.py
+tools/validate_data.py
+# 뉴스 헤드라인 풀(점수 열 = Day2 감성 점수화 정답)
+tools/news_pool/
+# Day2 워밍업 10건(공개 전 d2_news.csv의 행이 들어 있다) — Day2 08:30에 `git add -f labs/day2/news_warmup_10.txt`
+labs/day2/news_warmup_10.txt
+# Day4 체크포인트·정답 생성기(신용사건·전략 바이어 판정, PuLP 참고해·정답 워크북을 만든다) — 코드 공개는 과정 종료 뒤
+# (공개 저장소에 두는 Day4 파일: labs/day4/d4_limit_model.xlsx 빈 틀 · labs/day4/d4_challenge.ipynb · tools/build_day4_notebook.py)
+tools/checkpoints_day4.py
+tools/solve_day4_lp.py
+tools/build_day4_workbook.py
+tools/validate_day4.py
+# Day3 정답 모델·학습 코드(Day4 08:30 이후 공개 — train_day3_model.py 문서 주석의 '.gitignore 2절'을 여기서 반영)와 Day2·3 정답 생성기
+models/
+tools/checkpoints_day23.py
+tools/train_day3_model.py
+# Day5 Sheets 원장 양식(d5_start 값이 들어 있다 — Day5 08:30에 `git add -f labs/day5/TF_AR_Ledger_template.xlsx`)과
+# Day5 정답 생성기·검사(신용사건·사기 신호 판정, 충돌 조항 정답표) — 코드 공개는 과정 종료 뒤
+# (공개 저장소에 두는 Day5 파일: rag/ · agents/ · app/ · labs/day5/d5_rag_eval.ipynb · tools/build_day5_agents.py · tools/build_day5_notebook.py)
+labs/day5/TF_AR_Ledger_template.xlsx
+tools/build_day5.py
+tools/validate_day5.py
+
+# Day6 해커톤 — 위기 카드 · 인젝트 · 변형 카드는 공개 시각에 하나씩 `git add -f`
+# (카드 ①–⑤ · V1 09:28 · 카드 ⑤ 2단계 11:15 · I-1 11:30 · I-2 13:15 · V2 = 강사 시연용이라 공개하지 않는다)
+# 팀 팩 data/checkpoints/d6_teams/ · 카드 ⑤ 2단계 d6_card5_stage2.xlsx · d6_crisis_pack*는 위 data/checkpoints/d[2-6]_* 줄이 막는다
+# Day6 생성기 · 검사(카드 원문 · 강사 기대값 문구가 들어 있다) — 코드 공개는 과정 종료 뒤
+# (공개 저장소에 두는 Day6 파일: labs/day6/의 안내 · 규칙 · 역할 카드 · 루브릭 · 스탠드업 · 킷 체크리스트 · 양식 · 프롬프트)
+labs/day6/crisis_cards/
+labs/day6/injects/
+labs/day6/variants/
+tools/build_day6_pack.py
+tools/build_day6_answers.py
+tools/build_day6_templates.py
+tools/validate_day6.py
+
+# ── 3. 강사 자료가 실수로 들어왔을 때의 안전망 (영구 — 어떤 경우에도 공개하지 않는다) ──
+instructor/
+answers/
+*_answer.xlsx
+*_expected.md
+*_executed.ipynb
+*dirt_log*
+*dirty_log*
+공개용_*.xlsx
+DEMO_*.xlsx
+demo_backup/
+*.bak
+
+# ── 4. 실행·빌드 산출물 ────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+# 과정 사이트(MkDocs) 빌드 산출물 — 배포는 GitHub Actions가 새로 만든다(USB용 오프라인판 site_offline/ 포함)
+site/
+site_offline/
+# tools/sync_site_assets.py가 data/day1·labs/day1에서 복사해 만드는 배포용 사본(원본은 data/·labs/에 있다)
+docs/downloads/
+# Challenge 노트북을 로컬에서 돌리면 실행한 폴더에 생기는 SEC 응답 캐시(labs/day1/sec_cache/ 등 — 어느 폴더든 뺀다)
+sec_cache/
+# 브라우저 점검 도구 기록
+.gstack/
+
+# 수강생용 슬라이드 PDF(D18): 당일 18:00에 `git add -f handouts/dayN_slides.pdf`로 공개
+handouts/
+
+# K-SURE 약관 본문·발췌는 재배포 금지 — 저장소에 넣지 않는다(D36). 공식 링크는 rag/corpus/README.md
+rag/corpus/*ksure*
+rag/corpus/*약관*
+*ksure_terms*
+
+# ── 5. 수강생 작업 환경 ────────────────────────────────────────────
+# Claude Code worktree(`claude --worktree 이름`)가 브랜치마다 펼치는 작업 폴더 — 사본이라 커밋하지 않는다
+.claude/worktrees/
+# tools/get_day_files.py가 받다가 멈춘 임시 파일
+*.part

@@ -1,0 +1,189 @@
+<?xml version='1.0' encoding='utf-8'?>
+<scheme version="2.0" title="2일차 — 정제 규칙을 Orange로: 결측 대체 · 보기만 분기 · 저장(Orange 3.40)" description="DAY2 블록 A Step 4 ④(재무비율 4종만 같은 기준일 중앙값 + 1-NN 비교) · 블록 B Step 8(선택: Orange로 저장 · 뉴스 집계). 과정 합성 데이터((가상) 한빛정밀). File을 내 D2 폴더의 d2_step1.xlsx(시트 features)로 다시 지정한다.">
+	<nodes>
+		<node id="0" name="File" qualified_name="Orange.widgets.data.owfile.OWFile" project_name="Orange3" version="" title="File (d2_step1 · features)" position="(0.0, 220.0)" />
+		<node id="1" name="Column Statistics" qualified_name="Orange.widgets.data.owfeaturestatistics.OWFeatureStatistics" project_name="Orange3" version="" title="Column Statistics (결측)" position="(200.0, 60.0)" />
+		<node id="2" name="Impute" qualified_name="Orange.widgets.data.owimpute.OWImpute" project_name="Orange3" version="" title="Impute (중앙값)" position="(400.0, 220.0)" />
+		<node id="3" name="Data Table" qualified_name="Orange.widgets.data.owtable.OWTable" project_name="Orange3" version="" title="Data Table (중앙값 대체)" position="(600.0, 60.0)" />
+		<node id="4" name="kNN" qualified_name="Orange.widgets.model.owknn.OWKNNLearner" project_name="Orange3" version="" title="kNN (k = 1)" position="(200.0, 560.0)" />
+		<node id="5" name="Impute" qualified_name="Orange.widgets.data.owimpute.OWImpute" project_name="Orange3" version="" title="Impute (1-NN 비교)" position="(400.0, 560.0)" />
+		<node id="6" name="Data Table" qualified_name="Orange.widgets.data.owtable.OWTable" project_name="Orange3" version="" title="Data Table (1-NN)" position="(600.0, 560.0)" />
+		<node id="7" name="Continuize" qualified_name="Orange.widgets.data.owcontinuize.OWContinuize" project_name="Orange3" version="" title="Continuize (보기만)" position="(600.0, 180.0)" />
+		<node id="8" name="Data Table" qualified_name="Orange.widgets.data.owtable.OWTable" project_name="Orange3" version="" title="Data Table (원-핫)" position="(800.0, 180.0)" />
+		<node id="9" name="Preprocess" qualified_name="Orange.widgets.data.owpreprocess.OWPreprocess" project_name="Orange3" version="" title="Preprocess (0–1 · 보기만)" position="(600.0, 300.0)" />
+		<node id="10" name="Data Table" qualified_name="Orange.widgets.data.owtable.OWTable" project_name="Orange3" version="" title="Data Table (0–1)" position="(800.0, 300.0)" />
+		<node id="11" name="Distributions" qualified_name="Orange.widgets.visualize.owdistributions.OWDistributions" project_name="Orange3" version="" title="Distributions (중앙값)" position="(800.0, 60.0)" />
+		<node id="12" name="Distributions" qualified_name="Orange.widgets.visualize.owdistributions.OWDistributions" project_name="Orange3" version="" title="Distributions (1-NN)" position="(800.0, 560.0)" />
+		<node id="13" name="Save Data" qualified_name="Orange.widgets.data.owsave.OWSave" project_name="Orange3" version="" title="Save Data (CSV)" position="(600.0, 420.0)" />
+		<node id="14" name="File" qualified_name="Orange.widgets.data.owfile.OWFile" project_name="Orange3" version="" title="File (뉴스 점수)" position="(0.0, 760.0)" />
+		<node id="15" name="Select Rows" qualified_name="Orange.widgets.data.owselectrows.OWSelectRows" project_name="Orange3" version="" title="Select Rows (뉴스 창)" position="(200.0, 760.0)" />
+		<node id="16" name="Group by" qualified_name="Orange.widgets.data.owgroupby.OWGroupBy" project_name="Orange3" version="" title="Group by (buyer_id)" position="(400.0, 760.0)" />
+		<node id="17" name="Merge Data" qualified_name="Orange.widgets.data.owmergedata.OWMergeData" project_name="Orange3" version="" title="Merge Data (뉴스 붙이기)" position="(600.0, 760.0)" />
+		<node id="18" name="Data Table" qualified_name="Orange.widgets.data.owtable.OWTable" project_name="Orange3" version="" title="Data Table (뉴스 집계)" position="(800.0, 760.0)" />
+	</nodes>
+	<links>
+		<link id="0" source_node_id="0" sink_node_id="1" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="1" source_node_id="0" sink_node_id="2" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="2" source_node_id="2" sink_node_id="3" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="3" source_node_id="0" sink_node_id="5" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="4" source_node_id="4" sink_node_id="5" source_channel="Learner" sink_channel="Learner" enabled="true" source_channel_id="learner" sink_channel_id="learner" />
+		<link id="5" source_node_id="5" sink_node_id="6" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="6" source_node_id="2" sink_node_id="7" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="7" source_node_id="7" sink_node_id="8" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="8" source_node_id="2" sink_node_id="9" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="9" source_node_id="9" sink_node_id="10" source_channel="Preprocessed Data" sink_channel="Data" enabled="true" source_channel_id="preprocessed_data" sink_channel_id="data" />
+		<link id="10" source_node_id="2" sink_node_id="11" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="11" source_node_id="5" sink_node_id="12" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="12" source_node_id="2" sink_node_id="13" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="13" source_node_id="14" sink_node_id="15" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="14" source_node_id="15" sink_node_id="16" source_channel="Matching Data" sink_channel="Data" enabled="true" source_channel_id="matching_data" sink_channel_id="data" />
+		<link id="15" source_node_id="0" sink_node_id="17" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+		<link id="16" source_node_id="16" sink_node_id="17" source_channel="Data" sink_channel="Extra Data" enabled="true" source_channel_id="data" sink_channel_id="extra_data" />
+		<link id="17" source_node_id="17" sink_node_id="18" source_channel="Data" sink_channel="Data" enabled="true" source_channel_id="data" sink_channel_id="data" />
+	</links>
+	<annotations>
+		<text id="0" type="text/plain" rect="(-20.0, -160.0, 940.0, 60.0)" font-family="Malgun Gothic" font-size="13">2일차 Orange 전처리 — Step 4 ④ 결측 대체(재무비율 4종만) · 보기만 분기 · Step 8(선택) 저장과 뉴스 집계. 처음 열면 File을 내 D2 폴더의 d2_step1.xlsx · Sheet features로 다시 지정 → buyer_id = meta · late_30d = target → Apply.</text>
+		<text id="1" type="text/plain" rect="(-70.0, 290.0, 200.0, 180.0)" font-family="Malgun Gothic" font-size="12">Step 4 ④ · Column Statistics(옛 이름 Feature Statistics)의 Missing 열로 결측이 많은 열을 본다. 재무비율 4종만 채우고 나머지(pct_ar_31p · dpd_trend 등)는 그대로 둔다 — fin_missing이 표시</text>
+		<text id="2" type="text/plain" rect="(300.0, -80.0, 400.0, 90.0)" font-family="Malgun Gothic" font-size="12">Impute(중앙값) · Default method = Don't impute · current_ratio · debt_to_equity · dso_buyer · op_margin = Fixed values. Fixed values 칸의 0은 자리표시다 → 내 check 시트의 중앙값(=MEDIAN)으로 바꾼다.</text>
+		<text id="3" type="text/plain" rect="(130.0, 630.0, 460.0, 60.0)" font-family="Malgun Gothic" font-size="12">비교 · Impute(1-NN) = Model-based imputer + kNN(k = 1). kNN을 잇지 않으면 Orange 기본 모델은 나무(tree)다. 모든 빈칸을 채운다 — 정의되지 않는 값까지 채우는 것이 차이</text>
+		<text id="4" type="text/plain" rect="(900.0, 170.0, 240.0, 130.0)" font-family="Malgun Gothic" font-size="12">보기만 · Continuize(원-핫) · Preprocess(Normalize to [0, 1]) → Data Table. 정규화 값은 저장하지 않는다 — 3일차 평가 안에서 학습 데이터 기준으로 한다</text>
+		<text id="5" type="text/plain" rect="(680.0, 400.0, 280.0, 50.0)" font-family="Malgun Gothic" font-size="12">Step 8(선택) · Save Data는 Impute 출력에(Continuize 뒤 아님)</text>
+		<text id="6" type="text/plain" rect="(900.0, 20.0, 240.0, 90.0)" font-family="Malgun Gothic" font-size="12">(Standard) Distributions 두 개(위 · 아래) — current_ratio 분포를 중앙값 vs 1-NN으로 비교한다</text>
+		<text id="7" type="text/plain" rect="(-60.0, 830.0, 960.0, 60.0)" font-family="Malgun Gothic" font-size="12">Step 8(선택) · 뉴스 집계를 Orange로: File(d2_news_scored.csv, date = text) → Select Rows (date is between 2026-08-02 · 2026-08-31 = 창 (AsOf−30일, AsOf]) → Group by(buyer_id: Mean · Min · Count) → Merge Data(buyer_id). 뉴스가 없는 바이어는 빈칸 — 5 + no_news_flag는 시트에서 채운다</text>
+	</annotations>
+	<thumbnail />
+	<node_properties>
+		<properties node_id="0" format="pickle">gASVQgQAAAAAAAB9lCiMEmNvbnRyb2xBcmVhVmlzaWJsZZSIjAxyZWNlbnRfcGF0aHOUXZSMHm9y
+YW5nZXdpZGdldC51dGlscy5maWxlZGlhbG9nc5SMClJlY2VudFBhdGiUk5QpgZR9lCiMB2Fic3Bh
+dGiUjA1kMl9zdGVwMS54bHN4lIwGcHJlZml4lIwHYmFzZWRpcpSMB3JlbHBhdGiUaAqMBXRpdGxl
+lIwAlIwFc2hlZXSUjAhmZWF0dXJlc5SMC2ZpbGVfZm9ybWF0lE51YmGMC3JlY2VudF91cmxzlF2U
+jAtzaGVldF9uYW1lc5R9lIwGc291cmNllEsAjAN1cmyUaA+MDWRvbWFpbl9lZGl0b3KUfZSMC19f
+dmVyc2lvbl9flEsBjBBjb250ZXh0X3NldHRpbmdzlF2UjBVvcmFuZ2V3aWRnZXQuc2V0dGluZ3OU
+jAdDb250ZXh0lJOUKYGUfZQojAZ2YWx1ZXOUfZQojAl2YXJpYWJsZXOUXZRoGX2UaCVdlChdlCiM
+DmFyX2JhbGFuY2VfdXNklIwUT3JhbmdlLmRhdGEudmFyaWFibGWUjBJDb250aW51b3VzVmFyaWFi
+bGWUk5RLAGgPiGVdlCiMCnBjdF9hcl8zMXCUaC1LAGgPiGVdlCiMCmxhdGVfcmF0aW+UaC1LAGgP
+iGVdlCiMCWRwZF90cmVuZJRoLUsAaA+IZV2UKIwNY3VycmVudF9yYXRpb5RoLUsAaA+IZV2UKIwK
+bmVnX2VxdWl0eZRoK4wQRGlzY3JldGVWYXJpYWJsZZSTlEsAjAQwLCAxlIhlXZQojA5kZWJ0X3Rv
+X2VxdWl0eZRoLUsAaA+IZV2UKIwJZHNvX2J1eWVylGgtSwBoD4hlXZQojAlvcF9tYXJnaW6UaC1L
+AGgPiGVdlCiMC2Zpbl9taXNzaW5nlGg5SwCMBDAsIDGUiGVdlCiMCGxhdGVfMzBklGg5SwGMBDAs
+IDGUiGVdlCiMCGJ1eWVyX2lklGgrjA5TdHJpbmdWYXJpYWJsZZSTlEsCaA+JZWVzaBtLAXWMCmF0
+dHJpYnV0ZXOUKIwOYXJfYmFsYW5jZV91c2SUSwKGlIwKcGN0X2FyXzMxcJRLAoaUjApsYXRlX3Jh
+dGlvlEsChpSMCWRwZF90cmVuZJRLAoaUjA1jdXJyZW50X3JhdGlvlEsChpSMCm5lZ19lcXVpdHmU
+XZQojAEwlIwBMZRlhpSMDmRlYnRfdG9fZXF1aXR5lEsChpSMCWRzb19idXllcpRLAoaUjAlvcF9t
+YXJnaW6USwKGlIwLZmluX21pc3NpbmeUXZQojAEwlIwBMZRlhpSMCGxhdGVfMzBklF2UKIwBMJSM
+ATGUZYaUdJSMBW1ldGFzlIwIYnV5ZXJfaWSUSwOGlIWUjApjbGFzc192YXJzlCmMEm1vZGlmaWVk
+X3ZhcmlhYmxlc5RdlHViYXUu
+</properties>
+		<properties node_id="1" format="pickle">gASVhgEAAAAAAAB9lCiMC2F1dG9fY29tbWl0lIiMEmNvbnRyb2xBcmVhVmlzaWJsZZSIjAtfX3Zl
+cnNpb25fX5RLAowQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdld2lkZ2V0LnNldHRpbmdzlIwH
+Q29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwJY29sb3JfdmFylIwIbGF0ZV8zMGSUS2WGlIwN
+c2VsZWN0ZWRfdmFyc5RdlGgDSwJ1jAphdHRyaWJ1dGVzlH2UKIwOYXJfYmFsYW5jZV91c2SUSwKM
+CnBjdF9hcl8zMXCUSwKMCmxhdGVfcmF0aW+USwKMCWRwZF90cmVuZJRLAowNY3VycmVudF9yYXRp
+b5RLAowKbmVnX2VxdWl0eZRLAYwOZGVidF90b19lcXVpdHmUSwKMCWRzb19idXllcpRLAowJb3Bf
+bWFyZ2lulEsCjAtmaW5fbWlzc2luZ5RLAWgOSwF1jAVtZXRhc5R9lIwIYnV5ZXJfaWSUSwNzdWJh
+dS4=
+</properties>
+		<properties node_id="2" format="pickle">gASVyQIAAAAAAAB9lCiMFV9kZWZhdWx0X21ldGhvZF9pbmRleJRLAYwKYXV0b2NvbW1pdJSIjBJj
+b250cm9sQXJlYVZpc2libGWUiIwVZGVmYXVsdF9udW1lcmljX3ZhbHVllEcAAAAAAAAAAIwMZGVm
+YXVsdF90aW1llEsAjAtfX3ZlcnNpb25fX5RLAYwQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdl
+d2lkZ2V0LnNldHRpbmdzlIwHQ29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwaX3ZhcmlhYmxl
+X2ltcHV0YXRpb25fc3RhdGWUfZQojCdPcmFuZ2UuZGF0YS52YXJpYWJsZS5Db250aW51b3VzVmFy
+aWFibGWUjA1jdXJyZW50X3JhdGlvlIaUSwdHAAAAAAAAAACFlIaUjCdPcmFuZ2UuZGF0YS52YXJp
+YWJsZS5Db250aW51b3VzVmFyaWFibGWUjA5kZWJ0X3RvX2VxdWl0eZSGlEsHRwAAAAAAAAAAhZSG
+lIwnT3JhbmdlLmRhdGEudmFyaWFibGUuQ29udGludW91c1ZhcmlhYmxllIwJZHNvX2J1eWVylIaU
+SwdHAAAAAAAAAACFlIaUjCdPcmFuZ2UuZGF0YS52YXJpYWJsZS5Db250aW51b3VzVmFyaWFibGWU
+jAlvcF9tYXJnaW6UhpRLB0cAAAAAAAAAAIWUhpR1Sv7///+GlGgGSwF1jAphdHRyaWJ1dGVzlH2U
+KIwOYXJfYmFsYW5jZV91c2SUSwKMCnBjdF9hcl8zMXCUSwKMCmxhdGVfcmF0aW+USwKMCWRwZF90
+cmVuZJRLAmgTSwKMCm5lZ19lcXVpdHmUSwFoGEsCaB1LAmgiSwKMC2Zpbl9taXNzaW5nlEsBjAhs
+YXRlXzMwZJRLAXWMBW1ldGFzlH2UjAhidXllcl9pZJRLA3N1YmF1Lg==
+</properties>
+		<properties node_id="3" format="literal">{'auto_commit': True, 'color_by_class': True, 'controlAreaVisible': True, 'select_rows': True, 'show_attribute_labels': True, 'show_distributions': False, 'stored_selection': {'rows': [], 'columns': []}, 'stored_sort': [], '__version__': 1}</properties>
+		<properties node_id="4" format="literal">{'auto_apply': True, 'controlAreaVisible': True, 'learner_name': 'kNN (k = 1)', 'metric_index': 0, 'n_neighbors': 1, 'weight_index': 0, '__version__': 1}</properties>
+		<properties node_id="5" format="pickle">gASV0wEAAAAAAAB9lCiMFV9kZWZhdWx0X21ldGhvZF9pbmRleJRLBIwKYXV0b2NvbW1pdJSIjBJj
+b250cm9sQXJlYVZpc2libGWUiIwVZGVmYXVsdF9udW1lcmljX3ZhbHVllEcAAAAAAAAAAIwMZGVm
+YXVsdF90aW1llEsAjAtfX3ZlcnNpb25fX5RLAYwQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdl
+d2lkZ2V0LnNldHRpbmdzlIwHQ29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwaX3ZhcmlhYmxl
+X2ltcHV0YXRpb25fc3RhdGWUfZRK/P///4aUaAZLAXWMCmF0dHJpYnV0ZXOUfZQojA5hcl9iYWxh
+bmNlX3VzZJRLAowKcGN0X2FyXzMxcJRLAowKbGF0ZV9yYXRpb5RLAowJZHBkX3RyZW5klEsCjA1j
+dXJyZW50X3JhdGlvlEsCjApuZWdfZXF1aXR5lEsBjA5kZWJ0X3RvX2VxdWl0eZRLAowJZHNvX2J1
+eWVylEsCjAlvcF9tYXJnaW6USwKMC2Zpbl9taXNzaW5nlEsBjAhsYXRlXzMwZJRLAXWMBW1ldGFz
+lH2UjAhidXllcl9pZJRLA3N1YmF1Lg==
+</properties>
+		<properties node_id="6" format="literal">{'auto_commit': True, 'color_by_class': True, 'controlAreaVisible': True, 'select_rows': True, 'show_attribute_labels': True, 'show_distributions': False, 'stored_selection': {'rows': [], 'columns': []}, 'stored_sort': [], '__version__': 1}</properties>
+		<properties node_id="7" format="literal">{'autosend': True, 'cont_var_hints': {'': 0}, 'controlAreaVisible': True, 'disc_var_hints': {'': 1}, '__version__': 3}</properties>
+		<properties node_id="8" format="literal">{'auto_commit': True, 'color_by_class': True, 'controlAreaVisible': True, 'select_rows': True, 'show_attribute_labels': True, 'show_distributions': False, 'stored_selection': {'rows': [], 'columns': []}, 'stored_sort': [], '__version__': 1}</properties>
+		<properties node_id="9" format="literal">{'autocommit': True, 'controlAreaVisible': True, 'storedsettings': {'name': '', 'preprocessors': [('orange.preprocess.scale', {'method': 3})]}, '__version__': 2}</properties>
+		<properties node_id="10" format="literal">{'auto_commit': True, 'color_by_class': True, 'controlAreaVisible': True, 'select_rows': True, 'show_attribute_labels': True, 'show_distributions': False, 'stored_selection': {'rows': [], 'columns': []}, 'stored_sort': [], '__version__': 1}</properties>
+		<properties node_id="11" format="pickle">gASVKQIAAAAAAAB9lCiMCmF1dG9fYXBwbHmUiIwSY29udHJvbEFyZWFWaXNpYmxllIiMEGN1bXVs
+YXRpdmVfZGlzdHKUiYwTZml0dGVkX2Rpc3RyaWJ1dGlvbpRLAIwJaGlkZV9iYXJzlImMDWtkZV9z
+bW9vdGhpbmeUSwqMCnNob3dfcHJvYnOUiYwMc29ydF9ieV9mcmVxlImMD3N0YWNrZWRfY29sdW1u
+c5SJjAtfX3ZlcnNpb25fX5RLAowQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdld2lkZ2V0LnNl
+dHRpbmdzlIwHQ29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwEY3ZhcpSMCGxhdGVfMzBklEtl
+hpSMDm51bWJlcl9vZl9iaW5zlEsFSv7///+GlIwNc2VsZWN0ZWRfYmFyc5SPlEr+////hpSMA3Zh
+cpSMDWN1cnJlbnRfcmF0aW+US2aGlGgKSwJ1jAphdHRyaWJ1dGVzlH2UKIwOYXJfYmFsYW5jZV91
+c2SUSwKMCnBjdF9hcl8zMXCUSwKMCmxhdGVfcmF0aW+USwKMCWRwZF90cmVuZJRLAmgdSwKMCm5l
+Z19lcXVpdHmUSwGMDmRlYnRfdG9fZXF1aXR5lEsCjAlkc29fYnV5ZXKUSwKMCW9wX21hcmdpbpRL
+AowLZmluX21pc3NpbmeUSwFoFUsBdYwFbWV0YXOUfZSMCGJ1eWVyX2lklEsDc3ViYXUu
+</properties>
+		<properties node_id="12" format="pickle">gASVKQIAAAAAAAB9lCiMCmF1dG9fYXBwbHmUiIwSY29udHJvbEFyZWFWaXNpYmxllIiMEGN1bXVs
+YXRpdmVfZGlzdHKUiYwTZml0dGVkX2Rpc3RyaWJ1dGlvbpRLAIwJaGlkZV9iYXJzlImMDWtkZV9z
+bW9vdGhpbmeUSwqMCnNob3dfcHJvYnOUiYwMc29ydF9ieV9mcmVxlImMD3N0YWNrZWRfY29sdW1u
+c5SJjAtfX3ZlcnNpb25fX5RLAowQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdld2lkZ2V0LnNl
+dHRpbmdzlIwHQ29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwEY3ZhcpSMCGxhdGVfMzBklEtl
+hpSMDm51bWJlcl9vZl9iaW5zlEsFSv7///+GlIwNc2VsZWN0ZWRfYmFyc5SPlEr+////hpSMA3Zh
+cpSMDWN1cnJlbnRfcmF0aW+US2aGlGgKSwJ1jAphdHRyaWJ1dGVzlH2UKIwOYXJfYmFsYW5jZV91
+c2SUSwKMCnBjdF9hcl8zMXCUSwKMCmxhdGVfcmF0aW+USwKMCWRwZF90cmVuZJRLAmgdSwKMCm5l
+Z19lcXVpdHmUSwGMDmRlYnRfdG9fZXF1aXR5lEsCjAlkc29fYnV5ZXKUSwKMCW9wX21hcmdpbpRL
+AowLZmluX21pc3NpbmeUSwFoFUsBdYwFbWV0YXOUfZSMCGJ1eWVyX2lklEsDc3ViYXUu
+</properties>
+		<properties node_id="13" format="literal">{'add_type_annotations': False, 'auto_save': False, 'controlAreaVisible': True, 'filter': 'Comma-separated values (*.csv)', 'stored_name': 'd2_end_features_orange.csv', 'stored_path': '.', '__version__': 3}</properties>
+		<properties node_id="14" format="pickle">gASVVwMAAAAAAAB9lCiMEmNvbnRyb2xBcmVhVmlzaWJsZZSIjAxyZWNlbnRfcGF0aHOUXZSMHm9y
+YW5nZXdpZGdldC51dGlscy5maWxlZGlhbG9nc5SMClJlY2VudFBhdGiUk5QpgZR9lCiMB2Fic3Bh
+dGiUjBJkMl9uZXdzX3Njb3JlZC5jc3aUjAZwcmVmaXiUjAdiYXNlZGlylIwHcmVscGF0aJRoCowF
+dGl0bGWUjACUjAVzaGVldJRoD4wLZmlsZV9mb3JtYXSUTnViYYwLcmVjZW50X3VybHOUXZSMC3No
+ZWV0X25hbWVzlH2UjAZzb3VyY2WUSwCMA3VybJRoD4wNZG9tYWluX2VkaXRvcpR9lIwLX192ZXJz
+aW9uX1+USwGMEGNvbnRleHRfc2V0dGluZ3OUXZSMFW9yYW5nZXdpZGdldC5zZXR0aW5nc5SMB0Nv
+bnRleHSUk5QpgZR9lCiMBnZhbHVlc5R9lCiMCXZhcmlhYmxlc5RdlGgYfZRoJF2UKF2UKIwEZGF0
+ZZSMFE9yYW5nZS5kYXRhLnZhcmlhYmxllIwOU3RyaW5nVmFyaWFibGWUk5RLAmgPiGVdlCiMDm5l
+d3Nfc2VudF8wXzEwlGgqjBJDb250aW51b3VzVmFyaWFibGWUk5RLAGgPiGVdlCiMBWxhYmVslGgq
+jBBEaXNjcmV0ZVZhcmlhYmxllJOUSwCMGGhpZ2gsIGxvdywgc2V2ZXJlLCB3YXRjaJSJZV2UKIwK
+Y29uZmlkZW5jZZRoMEsAaA+IZV2UKIwHbmV3c19pZJRoLEsCaA+JZV2UKIwIYnV5ZXJfaWSUaCxL
+AmgPiWVdlCiMCGV2aWRlbmNllGgsSwJoD4llZXNoGksBdYwKYXR0cmlidXRlc5QojARkYXRllEsE
+hpSMDm5ld3Nfc2VudF8wXzEwlEsChpSMBWxhYmVslF2UKIwEaGlnaJSMA2xvd5SMBnNldmVyZZSM
+BXdhdGNolGWGlIwKY29uZmlkZW5jZZRLAoaUdJSMBW1ldGFzlIwHbmV3c19pZJRLA4aUjAhidXll
+cl9pZJRLA4aUjAhldmlkZW5jZZRLA4aUh5SMCmNsYXNzX3ZhcnOUKYwSbW9kaWZpZWRfdmFyaWFi
+bGVzlF2UdWJhdS4=
+</properties>
+		<properties node_id="15" format="pickle">gASVcwEAAAAAAAB9lCiMC2F1dG9fY29tbWl0lIiMEmNvbnRyb2xBcmVhVmlzaWJsZZSIjBBwdXJn
+ZV9hdHRyaWJ1dGVzlImMDXB1cmdlX2NsYXNzZXOUiYwQdXBkYXRlX29uX2NoYW5nZZSIjAtfX3Zl
+cnNpb25fX5RLAowQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdld2lkZ2V0LnNldHRpbmdzlIwH
+Q29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwKY29uZGl0aW9uc5RdlCiMBGRhdGWUSwNLBowK
+MjAyNi0wOC0wMpSMCjIwMjYtMDgtMzGUhpR0lGFoBksCdYwKYXR0cmlidXRlc5R9lCiMDm5ld3Nf
+c2VudF8wXzEwlEsCjAVsYWJlbJRLAYwKY29uZmlkZW5jZZRLAnWMBW1ldGFzlH2UKGgSSwOMB25l
+d3NfaWSUSwOMCGJ1eWVyX2lklEsDjAhldmlkZW5jZZRLA3V1YmF1Lg==
+</properties>
+		<properties node_id="16" format="pickle">gASVkAEAAAAAAAB9lCiMC2F1dG9fY29tbWl0lIiMEmNvbnRyb2xBcmVhVmlzaWJsZZSIjAtfX3Zl
+cnNpb25fX5RLAYwQY29udGV4dF9zZXR0aW5nc5RdlIwVb3Jhbmdld2lkZ2V0LnNldHRpbmdzlIwH
+Q29udGV4dJSTlCmBlH2UKIwGdmFsdWVzlH2UKIwMYWdncmVnYXRpb25zlH2UKIwObmV3c19zZW50
+XzBfMTCUS2aGlI+UKIwFQ291bnSUjARNZWFulIwKTWluLiB2YWx1ZZSQjAVsYWJlbJRLZYaUj5SM
+CmNvbmZpZGVuY2WUS2aGlI+UjARkYXRllEtnhpSPlIwHbmV3c19pZJRLZ4aUj5SMCGJ1eWVyX2lk
+lEtnhpSPlIwIZXZpZGVuY2WUS2eGlI+UdUr8////hpSMCGdiX2F0dHJzlF2UaCFLZ4aUYUr9////
+hpRoA0sBdYwKYXR0cmlidXRlc5R9lChoD0sCaBVLAWgYSwJ1jAVtZXRhc5R9lChoG0sDaB5LA2gh
+SwNoJEsDdXViYXUu
+</properties>
+		<properties node_id="17" format="pickle">gASV9QEAAAAAAAB9lCiMCmF1dG9fYXBwbHmUiIwSY29udHJvbEFyZWFWaXNpYmxllIiMB21lcmdp
+bmeUSwCMC19fdmVyc2lvbl9flEsCjBBjb250ZXh0X3NldHRpbmdzlF2UjBVvcmFuZ2V3aWRnZXQu
+c2V0dGluZ3OUjAdDb250ZXh0lJOUKYGUfZQojAZ2YWx1ZXOUfZQojAphdHRyX3BhaXJzlF2UXZQo
+jAhidXllcl9pZJRLZ4aUjAhidXllcl9pZJRLZ4aUZWFoBEsCdYwKdmFyaWFibGVzMZR9lCiMDmFy
+X2JhbGFuY2VfdXNklEtmjApwY3RfYXJfMzFwlEtmjApsYXRlX3JhdGlvlEtmjAlkcGRfdHJlbmSU
+S2aMDWN1cnJlbnRfcmF0aW+US2aMCm5lZ19lcXVpdHmUS2WMDmRlYnRfdG9fZXF1aXR5lEtmjAlk
+c29fYnV5ZXKUS2aMCW9wX21hcmdpbpRLZowLZmluX21pc3NpbmeUS2WMCGxhdGVfMzBklEtlaBFL
+Z3WMCnZhcmlhYmxlczKUfZQojBVuZXdzX3NlbnRfMF8xMCAtIE1lYW6US2aMG25ld3Nfc2VudF8w
+XzEwIC0gTWluLiB2YWx1ZZRLZowWbmV3c19zZW50XzBfMTAgLSBDb3VudJRLZmgTS2d1dWJhdS4=
+</properties>
+		<properties node_id="18" format="literal">{'auto_commit': True, 'color_by_class': True, 'controlAreaVisible': True, 'select_rows': True, 'show_attribute_labels': True, 'show_distributions': False, 'stored_selection': {'rows': [], 'columns': []}, 'stored_sort': [], '__version__': 1}</properties>
+	</node_properties>
+	<session_state>
+		<window_groups />
+	</session_state>
+</scheme>

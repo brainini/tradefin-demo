@@ -1,0 +1,2551 @@
+{
+  "name": "한빛 독촉 워크플로 v1 (Draft-only)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 한빛 독촉 워크플로 v1 (Draft-only)\n가져온 뒤: ① Google Sheets·Gmail 자격증명 연결 ② `TF_AR_Ledger` 시트 선택(노드 4개) ③ 'LLM 모델' 노드 5개에 LiteLLM 가상 키(OpenAI 호환 자격증명, Base URL) 또는 Gateway credits ④ Settings → Timezone = Asia/Seoul.\n**메일은 바이어에게 가지 않는다** — 승인 요청은 Config approver_email(본인)에게, 승인 뒤에는 Gmail **임시보관함 초안**만 만든다.",
+        "width": 560,
+        "height": 230,
+        "color": 4
+      },
+      "id": "7b672194-fe06-5602-ac0f-13d4a27ac618",
+      "name": "메모: 이 워크플로는",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "c84d6c86-ce3d-5a21-bbb7-90217882c497",
+      "name": "평일 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e5f6ee39-43a9-5c56-9ea6-63441b8d1445",
+      "name": "수동 실행(수업)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Config",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "0bd531cf-6cc1-53cc-9a82-8545acab20a3",
+      "name": "Config 읽기",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "AR_Ledger",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "1a3646b2-a437-5fe0-a661-4c8ba91a0248",
+      "name": "AR_Ledger 읽기",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// [단계 판정] n8n Code 노드(Run Once for All Items) — 03 Part1 §8.1 노드 4 + 03 Part2 §5.10 Switch 규칙의 합집합.\n// 앱 app/core/dunning.py route()와 같은 규칙이다. 바꾸면 둘 다 고친다(tools/build_day5_agents.py --check가 대조).\n//  - 기준일 = Config as_of(= run_date_override 2026-09-30). 비어 있으면 오늘(한국).\n//  - 단계: DM3(D-3~D-1) · D7(D+7~14) · D15(D+15~29, C등급은 D+7부터) · D30(D+30~44) · PRE(D+30 이후 + escalation_approved = Y)\n//  - 제외: status ≠ open · 신용장·선수금 · 이미 보낸 단계(last_dunning_stage) · 독촉 단계 아님\n//  - 사람 처리(HUMAN): 파산·사기 신호(bankruptcy_flag·fraud_flag = 1) · D+45 이후(최고장·추심 위임은 사람이 작성) — 바이어당 한 건으로 묶는다\nconst cfg = {};\nfor (const it of $('Config 읽기').all()) {\n  const k = String(it.json.key ?? '').trim();\n  if (k) cfg[k] = it.json.value;\n}\nconst DAY = 86400000;\nfunction toDate(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * DAY);  // 시트 날짜 일련번호\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{4})\\s*[-./]\\s*(\\d{1,2})\\s*[-./]\\s*(\\d{1,2})/);   // 2026-09-30 · 2026. 9. 30.\n  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));\n  m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);                        // 일/월/연\n  if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]));\n  return null;\n}\nconst ymd = (d) => d.toISOString().slice(0, 10);\nconst addDays = (d, n) => new Date(d.getTime() + n * DAY);\nfunction todayKst() {\n  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());\n  return toDate(p);\n}\nfunction fmtAmount(v, ccy) {\n  const n = Number(String(v ?? '').replace(/,/g, ''));\n  if (!isFinite(n)) return String(v ?? '');\n  const d = ccy === 'JPY' ? 0 : 2;\n  return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });\n}\nfunction termsText(pm, inv, due) {\n  const days = inv && due ? Math.round((due - inv) / DAY) : null;\n  return ({ OA: days !== null ? `O/A ${days} days` : 'O/A', DA: days !== null ? `D/A ${days} days` : 'D/A', DP: 'D/P at sight',\n    TT_SPLIT_30_70: '30% T/T in advance, 70% within 30 days after B/L' })[pm] ?? pm;\n}\nconst asOf = toDate(cfg.as_of) ?? todayKst();\nconst STAGE = { DM3: [0, 'T0'], D7: [1, 'T1'], D15: [2, 'T2'], D30: [3, 'T3'], PRE: [4, 'T4'] };\nlet wl = null;\ntry { wl = cfg.whitelist_regex ? new RegExp(String(cfg.whitelist_regex)) : null; } catch (e) { wl = null; }\nconst common = {\n  as_of: ymd(asOf), approver_email: String(cfg.approver_email ?? ''), test_recipient: String(cfg.test_recipient ?? ''),\n  model_alias: String(cfg.model_alias ?? 'fast-default'), prompt_version: String(cfg.prompt_version ?? 'v1'),\n  learner_id: String(cfg.learner_id ?? 'L00'), send_tz: String(cfg.send_tz ?? 'Asia/Seoul'),\n  send_window: String(cfg.send_window_local ?? '08:00-21:00'), whitelist_regex: String(cfg.whitelist_regex ?? ''),\n};\nconst out = [];\nconst human = {};\nfor (const it of $input.all()) {\n  const r = it.json;\n  const status = String(r.status ?? 'open').trim().toLowerCase();\n  if (status && status !== 'open') continue;\n  const pm = String(r.payment_method ?? '').trim();\n  if (pm === 'LC_SIGHT' || pm === 'LC_USANCE' || pm === 'TT_ADV') continue;   // 신용장 = 은행 채널 확인, 선수금 = 대상 아님\n  const due = toDate(r.due_date);\n  if (!due) continue;\n  const inv = toDate(r.invoice_date);\n  const dpd = Math.round((asOf - due) / DAY);\n  const flagged = Number(r.bankruptcy_flag) === 1 || Number(r.fraud_flag) === 1;\n  const esc = String(r.escalation_approved ?? '').trim().toUpperCase() === 'Y';\n  const grade = String(r.grade ?? '').trim();\n  let key = null;\n  let why = '';\n  if (flagged) why = '파산·사기 신호 — 사람 처리(AI 초안 금지)';\n  else if (dpd >= 30 && esc) key = 'PRE';\n  else if (dpd >= 45) why = `D+${dpd} — D+45 이후 최고장·추심 위임 검토는 사람이 작성`;\n  else if (dpd >= 30) key = 'D30';\n  else if (dpd >= 15) key = 'D15';\n  else if (dpd >= 7) key = grade === 'C' ? 'D15' : 'D7';\n  else if (dpd >= -3 && dpd <= -1) key = 'DM3';\n  if (!key && !why) continue;                       // 독촉 단계 아님\n  if (!key) {                                        // 사람 처리 — 바이어당 한 건\n    if (dpd < -3) continue;                          // 아직 만기 전이면 오늘 할 일 없음\n    const b = String(r.buyer_id);\n    human[b] = human[b] ?? { ...common, route: 'HUMAN', buyer_id: b, buyer_name: String(r.buyer_name ?? ''), reason: why,\n      fraud_type: String(r.fraud_type ?? ''), invoices: [] };\n    human[b].invoices.push(`${r.invoice_id}(D${dpd >= 0 ? '+' : ''}${dpd})`);\n    continue;\n  }\n  const [stageNo, tpl] = STAGE[key];\n  const lastRaw = r.last_dunning_stage;\n  const last = (lastRaw === '' || lastRaw === null || lastRaw === undefined) ? -1 : Number(lastRaw);\n  if (stageNo <= last) continue;                     // 이미 보낸 단계 — 중복 발송 방지\n  const ccy = String(r.currency ?? '');\n  const amount = (r.open_amount_ccy !== '' && r.open_amount_ccy !== undefined && r.open_amount_ccy !== null) ? r.open_amount_ccy : r.amount_ccy;\n  const insured = String(r.ksure_insured ?? 'N').toUpperCase() === 'Y' ? 'Y' : 'N';\n  const recipient = String(r.contact_email ?? '').trim();\n  const nd = toDate(r.ksure_notice_deadline);\n  out.push({ json: {\n    ...common, route: 'DRAFT', invoice_id: String(r.invoice_id), buyer_id: String(r.buyer_id), buyer_name: String(r.buyer_name ?? ''),\n    grade, dpd, stage_key: key, stage_no: stageNo, template: tpl, reason: (key === 'D15' && dpd < 15) ? 'C등급 한 단계 앞당김' : key,\n    recipient, whitelist_ok: wl ? wl.test(recipient) : false, insured,\n    ksure_notice_deadline: nd ? ymd(nd) : '', notice_days_left: nd ? Math.round((nd - asOf) / DAY) : null,\n    facts: {\n      company_name: String(cfg.company_name ?? 'Hanbit Precision Co., Ltd. (fictional)'), sender_name: String(cfg.sender_name ?? 'Credit Team'),\n      sender_title: String(cfg.sender_title ?? 'Accounts Receivable'), account_manager: String(cfg.account_manager ?? 'your account manager'),\n      buyer_name: String(r.buyer_name ?? ''), contact_name: String(r.contact_name ?? '').trim() || 'Accounts Payable Team',\n      invoice_id: String(r.invoice_id), invoice_date: inv ? ymd(inv) : '', currency: ccy, amount_ccy: fmtAmount(amount, ccy),\n      payment_terms: termsText(pm, inv, due), due_date: ymd(due), days_overdue: String(Math.max(dpd, 0)),\n      reply_by_date: ymd(addDays(asOf, 5)), hold_effective_date: ymd(addDays(asOf, 7)), insured,\n      escalation_partner: insured === 'Y' ? 'our export credit insurer' : 'our authorised collection partner',\n    },\n  } });\n}\nfor (const h of Object.values(human)) out.push({ json: { ...h, invoices: h.invoices.join(', ') } });\nreturn out;\n"
+      },
+      "id": "0e0384d2-e80c-5b7b-9e8a-57ffd332652d",
+      "name": "단계 판정",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "38429a62-c463-502d-807f-cc34daa952ea",
+              "leftValue": "={{ $json.route }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "HUMAN"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3db892f1-a41f-5403-8255-77460f231900",
+      "name": "사람 처리?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.approver_email }}",
+        "subject": "=[사람 처리] {{ $json.buyer_id }} {{ $json.buyer_name }}",
+        "emailType": "text",
+        "message": "=AI 독촉 초안을 만들지 않은 바이어입니다 — 담당자가 직접 처리하세요.\n바이어: {{ $json.buyer_id }} {{ $json.buyer_name }}\n이유: {{ $json.reason }}\n신호: {{ $json.fraud_type }}\n인보이스: {{ $json.invoices }}\n파산·부도: 신규 선적 중단 · 사고발생통지·보험금 청구 검토 / 사기 신호: 입금 계좌 변경 금지 · 기존 연락처로 전화 확인",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c8d6bf0f-f6f7-522f-88a1-b39cdd78a417",
+      "name": "사람 처리 알림(내부)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        -260
+      ],
+      "webhookId": "2a25512d-3ff6-56bc-a522-21f97afbfa58"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $execution.id }}-{{ $('단계 판정').item.json.invoice_id || $('단계 판정').item.json.buyer_id }}",
+            "timestamp_kst": "={{ $now.setZone('Asia/Seoul').toFormat('yyyy-LL-dd HH:mm:ss') }}",
+            "learner_id": "={{ $('단계 판정').item.json.learner_id }}",
+            "buyer_id": "={{ $('단계 판정').item.json.buyer_id }}",
+            "invoice_no": "={{ $('단계 판정').item.json.invoice_id || $('단계 판정').item.json.invoices }}",
+            "overdue_days": "={{ $('단계 판정').item.json.dpd ?? '' }}",
+            "risk_grade": "={{ $('단계 판정').item.json.grade ?? '' }}",
+            "template_stage": "={{ $('단계 판정').item.json.stage_key ?? 'HUMAN' }}",
+            "model_alias": "={{ $('단계 판정').item.json.model_alias }}",
+            "model_resolved": "",
+            "prompt_version": "={{ $('단계 판정').item.json.prompt_version }}-{{ $('단계 판정').item.json.template ?? '' }}",
+            "draft_hash": "={{ $('단계 판정').item.json.draft_hash ?? '' }}",
+            "guardrail_result": "={{ $('단계 판정').item.json.guardrail_result ?? '' }}",
+            "approver": "={{ $('단계 판정').item.json.approver_email }}",
+            "decision": "human_required",
+            "deny_reason": "",
+            "sent_at": "",
+            "message_id": "",
+            "alert_type": "dunning",
+            "tokens_in": "",
+            "tokens_out": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_kst",
+              "displayName": "timestamp_kst",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "learner_id",
+              "displayName": "learner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buyer_id",
+              "displayName": "buyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_no",
+              "displayName": "invoice_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "overdue_days",
+              "displayName": "overdue_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_grade",
+              "displayName": "risk_grade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "template_stage",
+              "displayName": "template_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_alias",
+              "displayName": "model_alias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_resolved",
+              "displayName": "model_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_hash",
+              "displayName": "draft_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guardrail_result",
+              "displayName": "guardrail_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approver",
+              "displayName": "approver",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deny_reason",
+              "displayName": "deny_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_type",
+              "displayName": "alert_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_in",
+              "displayName": "tokens_in",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_out",
+              "displayName": "tokens_out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e6c5da95-0cb2-575c-9a49-3734e5fff6e3",
+      "name": "감사로그: 사람 처리",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1440,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "00b293f4-0178-5aa1-9595-1d38982c4bdf",
+              "leftValue": "={{ $json.whitelist_ok }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "67724a44-5c82-5da1-96e6-2f55a1a71223",
+      "name": "화이트리스트?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $execution.id }}-{{ $('단계 판정').item.json.invoice_id || $('단계 판정').item.json.buyer_id }}",
+            "timestamp_kst": "={{ $now.setZone('Asia/Seoul').toFormat('yyyy-LL-dd HH:mm:ss') }}",
+            "learner_id": "={{ $('단계 판정').item.json.learner_id }}",
+            "buyer_id": "={{ $('단계 판정').item.json.buyer_id }}",
+            "invoice_no": "={{ $('단계 판정').item.json.invoice_id || $('단계 판정').item.json.invoices }}",
+            "overdue_days": "={{ $('단계 판정').item.json.dpd ?? '' }}",
+            "risk_grade": "={{ $('단계 판정').item.json.grade ?? '' }}",
+            "template_stage": "={{ $('단계 판정').item.json.stage_key ?? 'HUMAN' }}",
+            "model_alias": "={{ $('단계 판정').item.json.model_alias }}",
+            "model_resolved": "",
+            "prompt_version": "={{ $('단계 판정').item.json.prompt_version }}-{{ $('단계 판정').item.json.template ?? '' }}",
+            "draft_hash": "={{ $('단계 판정').item.json.draft_hash ?? '' }}",
+            "guardrail_result": "={{ $('단계 판정').item.json.guardrail_result ?? '' }}",
+            "approver": "={{ $('단계 판정').item.json.approver_email }}",
+            "decision": "blocked_whitelist",
+            "deny_reason": "",
+            "sent_at": "",
+            "message_id": "",
+            "alert_type": "dunning",
+            "tokens_in": "",
+            "tokens_out": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_kst",
+              "displayName": "timestamp_kst",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "learner_id",
+              "displayName": "learner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buyer_id",
+              "displayName": "buyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_no",
+              "displayName": "invoice_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "overdue_days",
+              "displayName": "overdue_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_grade",
+              "displayName": "risk_grade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "template_stage",
+              "displayName": "template_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_alias",
+              "displayName": "model_alias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_resolved",
+              "displayName": "model_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_hash",
+              "displayName": "draft_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guardrail_result",
+              "displayName": "guardrail_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approver",
+              "displayName": "approver",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deny_reason",
+              "displayName": "deny_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_type",
+              "displayName": "alert_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_in",
+              "displayName": "tokens_in",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_out",
+              "displayName": "tokens_out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a935744f-2c13-5389-bf6a-de773975c748",
+      "name": "감사로그: 수신자 차단",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1440,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3f5382e3-ca06-55af-b90c-826af231b3f0",
+                    "leftValue": "={{ $json.stage_key }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "PRE"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PRE"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4ccc8569-7d32-597b-837c-c781cceb076f",
+                    "leftValue": "={{ $json.stage_key }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "D30"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "D30"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "af536422-3903-5ef6-8889-6893cc9a2404",
+                    "leftValue": "={{ $json.stage_key }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "D15"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "D15"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5481e563-c33d-5e89-b2a0-3c59f44b5b31",
+                    "leftValue": "={{ $json.stage_key }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "D7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "D7"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d7dc256b-6c40-5fe9-8070-14587b9a85d3",
+                    "leftValue": "={{ $json.stage_key }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "DM3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DM3"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "대상 아님"
+        }
+      },
+      "id": "8ab93355-fdc2-5570-ac4a-b99775bbd536",
+      "name": "단계 분기",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the credit manager of {{ $json.facts.company_name }}, a Korean exporter. A manager has already decided to refer this overdue account to {{ $json.facts.escalation_partner }} (for example \"our export credit insurer\" or \"our authorised collection partner\"). Write a short, formal pre-escalation notice in English.\n\nFacts (use only these):\n- Buyer: {{ $json.facts.buyer_name }}, contact: {{ $json.facts.contact_name }}\n- Invoice {{ $json.facts.invoice_id }}, outstanding amount {{ $json.facts.currency }} {{ $json.facts.amount_ccy }}, due {{ $json.facts.due_date }}, now {{ $json.facts.days_overdue }} days overdue\n- Shipments to the buyer are on hold since {{ $json.facts.hold_effective_date }}.\n\nThe email must:\n1. Summarise the overdue invoice in one sentence.\n2. State that, unless full payment or a signed payment plan is received by {{ $json.facts.reply_by_date }}, the account will be referred to {{ $json.facts.escalation_partner }} for further handling.\n3. Give a clear way to raise any dispute before that date (reply to this email or contact {{ $json.facts.account_manager }}).\n\nRules:\n- Formal and neutral: max 140 words. No threats, no emotional language.\n- Do NOT claim that any legal proceedings are under way. Do NOT mention courts, lawyers, police, credit bureaus or government authorities. Do NOT name any organisation other than {{ $json.facts.escalation_partner }}.\n- Do NOT include, change or confirm any bank account details. Refer only to \"the bank details on the original invoice\".\n- Do not invent facts. Output JSON only: {\"subject\": \"...\", \"body\": \"...\", \"summary_ko\": \"(reviewer summary in Korean, 1-2 sentences)\"}\n- Sign as {{ $json.facts.sender_name }}, {{ $json.facts.sender_title }}, {{ $json.facts.company_name }}.",
+        "hasOutputParser": false
+      },
+      "id": "73f97ccb-b539-5ae4-a8ea-72d288d20476",
+      "name": "초안 T4 이관 사전 통지",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $json.model_alias }}",
+          "mode": "id"
+        },
+        "options": {
+          "baseURL": "https://<강사 LiteLLM 주소>/v1",
+          "temperature": 0.3,
+          "maxTokens": 600,
+          "timeout": 30000,
+          "maxRetries": 1
+        }
+      },
+      "id": "6646eafb-8134-5284-8359-bc0adf026cda",
+      "name": "LLM 모델 PRE",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        -210
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the credit manager of {{ $json.facts.company_name }}, a Korean exporter. Write a formal final notice in English.\n\nFacts (use only these):\n- Buyer: {{ $json.facts.buyer_name }}, contact: {{ $json.facts.contact_name }}\n- Invoice {{ $json.facts.invoice_id }} dated {{ $json.facts.invoice_date }}, outstanding amount {{ $json.facts.currency }} {{ $json.facts.amount_ccy }}, due {{ $json.facts.due_date }}, now {{ $json.facts.days_overdue }} days overdue\n- Previous reminders were sent at 7 and 15 days overdue.\n- Our export credit insurance applies to this invoice: {{ $json.facts.insured }} (Y/N)\n\nThe email must:\n1. State that this is a final notice for invoice {{ $json.facts.invoice_id }}.\n2. State that, unless payment is received or a written payment plan is agreed by {{ $json.facts.reply_by_date }}, further shipments will be placed on hold effective {{ $json.facts.hold_effective_date }}. (This is a commercial decision about future shipments, not a legal step.)\n3. Only if insured = Y, add one neutral sentence: \"The outstanding amount will be handled in accordance with the terms of our export credit insurance policy.\" If insured = N, omit any mention of insurance.\n4. Invite the buyer to call or reply today to agree a payment plan, and say we value the relationship.\n\nRules:\n- Formal, calm and clear: max 170 words.\n- Do NOT say or imply that any legal proceedings have started or will start. Do NOT mention courts, lawyers, collection agencies, credit bureaus, police or government authorities.\n- Do NOT include, change or confirm any bank account details. Refer only to \"the bank details on the original invoice\".\n- Do not invent facts. Output JSON only: {\"subject\": \"...\", \"body\": \"...\", \"summary_ko\": \"(reviewer summary in Korean, 1-2 sentences)\"}\n- Sign as {{ $json.facts.sender_name }}, {{ $json.facts.sender_title }}, {{ $json.facts.company_name }}.",
+        "hasOutputParser": false
+      },
+      "id": "748fa4e0-f78f-53da-914c-a7e3d94ffc7f",
+      "name": "초안 T3 D+30 최종 통지",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        -170
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $json.model_alias }}",
+          "mode": "id"
+        },
+        "options": {
+          "baseURL": "https://<강사 LiteLLM 주소>/v1",
+          "temperature": 0.3,
+          "maxTokens": 600,
+          "timeout": 30000,
+          "maxRetries": 1
+        }
+      },
+      "id": "cba3552f-2b73-5984-8b5f-98c8ca85c6b2",
+      "name": "LLM 모델 D30",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an accounts receivable specialist at {{ $json.facts.company_name }}, a Korean exporter. Write a firm but courteous overdue notice in English.\n\nFacts (use only these):\n- Buyer: {{ $json.facts.buyer_name }}, contact: {{ $json.facts.contact_name }}; account manager in CC: {{ $json.facts.account_manager }}\n- Invoice {{ $json.facts.invoice_id }} dated {{ $json.facts.invoice_date }}, outstanding amount {{ $json.facts.currency }} {{ $json.facts.amount_ccy }}, terms {{ $json.facts.payment_terms }}, due {{ $json.facts.due_date }}\n- The invoice is now {{ $json.facts.days_overdue }} days overdue. A friendly reminder was sent earlier.\n\nThe email must:\n1. State clearly that invoice {{ $json.facts.invoice_id }} is {{ $json.facts.days_overdue }} days overdue.\n2. Request written confirmation of the payment date by {{ $json.facts.reply_by_date }}.\n3. Offer to resend the invoice and shipping documents (copy of B/L) if needed, and ask the buyer to tell us now if there is any dispute about quantity, quality or documents.\n4. Mention that our account manager {{ $json.facts.account_manager }} is copied.\n\nRules:\n- Firm, factual, respectful: max 150 words. No threats, no sarcasm.\n- Do NOT mention legal action, courts, lawyers, collection agencies, credit bureaus, police or government authorities.\n- Do NOT include, change or confirm any bank account details. Refer only to \"the bank details on the original invoice\".\n- Do not invent facts. Output JSON only: {\"subject\": \"...\", \"body\": \"...\", \"summary_ko\": \"(reviewer summary in Korean, 1-2 sentences)\"}\n- Sign as {{ $json.facts.sender_name }}, {{ $json.facts.sender_title }}, {{ $json.facts.company_name }}.",
+        "hasOutputParser": false
+      },
+      "id": "7cdcfe98-20ea-508b-b8ab-15cf5c444aee",
+      "name": "초안 T2 D+15 단호한 통지",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $json.model_alias }}",
+          "mode": "id"
+        },
+        "options": {
+          "baseURL": "https://<강사 LiteLLM 주소>/v1",
+          "temperature": 0.3,
+          "maxTokens": 600,
+          "timeout": 30000,
+          "maxRetries": 1
+        }
+      },
+      "id": "66db3373-2c8e-5cb3-b03d-fa92a1a25e9c",
+      "name": "LLM 모델 D15",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        170
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an accounts receivable specialist at {{ $json.facts.company_name }}, a Korean exporter. Write a short, friendly payment reminder email in English.\n\nFacts (use only these):\n- Buyer: {{ $json.facts.buyer_name }}, contact: {{ $json.facts.contact_name }}\n- Invoice {{ $json.facts.invoice_id }} dated {{ $json.facts.invoice_date }}, outstanding amount {{ $json.facts.currency }} {{ $json.facts.amount_ccy }}, terms {{ $json.facts.payment_terms }}, due {{ $json.facts.due_date }}\n- The invoice is {{ $json.facts.days_overdue }} days past due.\n\nThe email must:\n1. Politely say the payment may have been missed or may still be in transit.\n2. State the invoice number, amount and due date exactly as given.\n3. Ask for the expected payment date or a remittance copy (e.g., SWIFT MT103).\n4. Include: \"If payment has already been made, please disregard this message.\"\n\nRules:\n- Warm and brief: max 120 words. No blame, no pressure words, no deadlines.\n- Do NOT mention legal action, courts, lawyers, collection agencies, credit bureaus, police or government authorities.\n- Do NOT include, change or confirm any bank account details. Refer only to \"the bank details on the original invoice\".\n- Do not invent dates, amounts, history or reasons for the delay.\n- Output JSON only: {\"subject\": \"...\", \"body\": \"...\", \"summary_ko\": \"(reviewer summary in Korean, 1-2 sentences)\"}\n- Sign as {{ $json.facts.sender_name }}, {{ $json.facts.sender_title }}, {{ $json.facts.company_name }}.",
+        "hasOutputParser": false
+      },
+      "id": "5b6cf411-75d0-5270-9aa3-4925bebafd95",
+      "name": "초안 T1 D+7 리마인더",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        210
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $json.model_alias }}",
+          "mode": "id"
+        },
+        "options": {
+          "baseURL": "https://<강사 LiteLLM 주소>/v1",
+          "temperature": 0.3,
+          "maxTokens": 600,
+          "timeout": 30000,
+          "maxRetries": 1
+        }
+      },
+      "id": "1afc8b4b-d270-501c-92b9-31a44fb51916",
+      "name": "LLM 모델 D7",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an accounts receivable specialist at {{ $json.facts.company_name }}, a Korean exporter. Write a very short courtesy reminder email in English.\n\nFacts (use only these):\n- Buyer: {{ $json.facts.buyer_name }}, contact: {{ $json.facts.contact_name }}\n- Invoice {{ $json.facts.invoice_id }} dated {{ $json.facts.invoice_date }}, outstanding amount {{ $json.facts.currency }} {{ $json.facts.amount_ccy }}, terms {{ $json.facts.payment_terms }}, due {{ $json.facts.due_date }}\n\nThe email must:\n1. Be built around this sentence: \"This is a friendly reminder that invoice {{ $json.facts.invoice_id }} for {{ $json.facts.currency }} {{ $json.facts.amount_ccy }} is due on {{ $json.facts.due_date }}.\"\n2. Include: \"If payment has already been arranged, please disregard this message.\"\n\nRules:\n- Warm and brief: max 80 words. No pressure words, no deadlines other than the due date.\n- Do NOT mention legal action, courts, lawyers, collection agencies, credit bureaus, police or government authorities.\n- Do NOT include, change or confirm any bank account details. Refer only to \"the bank details on the original invoice\".\n- Do not invent dates, amounts, history or reasons.\n- Output JSON only: {\"subject\": \"...\", \"body\": \"...\", \"summary_ko\": \"(reviewer summary in Korean, 1-2 sentences)\"}\n- Sign as {{ $json.facts.sender_name }}, {{ $json.facts.sender_title }}, {{ $json.facts.company_name }}.",
+        "hasOutputParser": false
+      },
+      "id": "fdad8f1d-a71f-5729-a0a0-68318b693a63",
+      "name": "초안 T0 D-3 사전 안내",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $json.model_alias }}",
+          "mode": "id"
+        },
+        "options": {
+          "baseURL": "https://<강사 LiteLLM 주소>/v1",
+          "temperature": 0.3,
+          "maxTokens": 600,
+          "timeout": 30000,
+          "maxRetries": 1
+        }
+      },
+      "id": "276b32ca-3621-5292-a39e-cbeeb580c3f1",
+      "name": "LLM 모델 DM3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        550
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a291b908-4302-54f9-99c9-96ae0cb251ca",
+      "name": "대상 아님",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        590
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// [가드레일] n8n Code 노드(Run Once for Each Item) — LLM 초안 JSON을 꺼내 5가지를 검사한다. 앱 app/core/guardrails.py와 같은 규칙.\n//  ① 금지 표현(법적 절차·국가기관·위협 + 계좌 변경 문구) ② 단계별 필수 요소 ③ 180단어 이하 ④ 수신자 화이트리스트 ⑤ 발송 시간창(현지 08–21시)\nconst row = $('단계 판정').item.json;\nconst raw = String($json.text ?? $json.output ?? $json.response ?? '');\nfunction extract(t) {\n  const s = t.replace(/```(?:json)?/g, '');\n  let start = s.indexOf('{');\n  while (start !== -1) {\n    let depth = 0;\n    for (let j = start; j < s.length; j++) {\n      if (s[j] === '{') depth++;\n      else if (s[j] === '}') { depth--; if (depth === 0) { try { return JSON.parse(s.slice(start, j + 1)); } catch (e) { break; } } }\n    }\n    start = s.indexOf('{', start + 1);\n  }\n  return null;\n}\nconst obj = extract(raw) ?? {};\nconst subject = String(obj.subject ?? '').trim();\nconst body = String(obj.body ?? '').trim();\nconst summaryKo = String(obj.summary_ko ?? '').trim();\nconst text = `${subject}\\n${body}`;\nconst BLOCK = /(legal action|legal proceedings|\\bcourt\\b|\\blawsuit\\b|\\bsue\\b|\\bsuing\\b|attorney|lawyer|police|criminal|prosecut|\\bseiz|garnish|blacklist|credit bureau|report you to|arrest|interpol)/gi;\nconst BLOCK_KO = /(법원|경찰|검찰|형사|고소|소송|압류|체포|신용불량|블랙리스트|법적 조치)/g;\nconst BANK = /(new (bank )?account|updated? bank|change[sd]? (of |in |to )?(our |the )?bank|bank (account )?details? (have|has) changed|\\biban\\b|swift code|account number|routing number)/gi;\nconst bad = [...new Set([...(text.match(BLOCK) ?? []), ...(text.match(BLOCK_KO) ?? []), ...(text.match(BANK) ?? [])])];\nconst f = row.facts;\nconst miss = [];\nif (!body) miss.push('본문 없음(JSON 형식 오류)');\nif (f.invoice_id && !body.includes(f.invoice_id)) miss.push('인보이스 번호');\nconst core = String(f.amount_ccy).replace(/,/g, '').split('.')[0];\nif (core && !body.replace(/[^\\d]/g, '').includes(core)) miss.push('금액');\nif (['DM3', 'D7', 'D15', 'D30'].includes(row.stage_key) && !body.includes(f.due_date)) miss.push('결제기일');\nif (row.stage_key === 'D7' && !/disregard/i.test(body)) miss.push(\"'이미 지급했으면 무시' 문장\");\nif (['D15', 'D30', 'PRE'].includes(row.stage_key) && !body.includes(f.reply_by_date)) miss.push('회신 기한');\nif (row.stage_key === 'D30' && !/hold/i.test(body)) miss.push('선적 보류 고지');\nif (row.stage_key === 'PRE' && !body.includes(f.escalation_partner)) miss.push('이관 대상');\nconst words = body.split(/\\s+/).filter(Boolean).length;\nlet wlOk = false;\ntry { wlOk = row.whitelist_regex ? new RegExp(row.whitelist_regex).test(row.recipient) : false; } catch (e) { wlOk = false; }\nconst [h0, h1] = String(row.send_window || '08:00-21:00').split('-').map((x) => parseInt(x, 10));\nconst hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: row.send_tz || 'Asia/Seoul', hour: 'numeric', hourCycle: 'h23' }).format(new Date()), 10);\nconst inWindow = hour >= h0 && hour < h1;\nconst checks = [\n  { check: '① 금지 표현', ok: bad.length === 0, detail: bad.join(', ') || '없음' },\n  { check: '② 필수 요소', ok: miss.length === 0, detail: miss.join(', ') || '모두 있음' },\n  { check: '③ 길이 ≤ 180단어', ok: words <= 180, detail: `${words}단어` },\n  { check: '④ 수신자 화이트리스트', ok: wlOk, detail: row.recipient },\n];\nconst pass = checks.every((c) => c.ok);\nconst fails = checks.filter((c) => !c.ok).map((c) => c.check.split(' ')[0]);\nreturn { json: {\n  ...row, subject, body, summary_ko: summaryKo, checks, guardrail_pass: pass, in_window: inWindow, local_hour: hour,\n  guardrail_result: pass ? (inWindow ? 'pass' : 'pass(발송 시간창 밖 → 08:00까지 대기)') : `fail:${fails.join(',')}`,\n  checks_text: checks.map((c) => `${c.ok ? '✅' : '❌'} ${c.check}: ${c.detail}`).join('\\n'),\n} };\n"
+      },
+      "id": "a9cfc3bd-07a9-5d37-8369-650164787053",
+      "name": "가드레일",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b16d91cd-709d-5dd4-afeb-bc3545412681",
+              "leftValue": "={{ $json.guardrail_pass }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f4b58a92-3284-50e5-a8c3-8c79528c278c",
+      "name": "가드레일 통과?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $execution.id }}-{{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.buyer_id }}",
+            "timestamp_kst": "={{ $now.setZone('Asia/Seoul').toFormat('yyyy-LL-dd HH:mm:ss') }}",
+            "learner_id": "={{ $('가드레일').item.json.learner_id }}",
+            "buyer_id": "={{ $('가드레일').item.json.buyer_id }}",
+            "invoice_no": "={{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.invoices }}",
+            "overdue_days": "={{ $('가드레일').item.json.dpd ?? '' }}",
+            "risk_grade": "={{ $('가드레일').item.json.grade ?? '' }}",
+            "template_stage": "={{ $('가드레일').item.json.stage_key ?? 'HUMAN' }}",
+            "model_alias": "={{ $('가드레일').item.json.model_alias }}",
+            "model_resolved": "",
+            "prompt_version": "={{ $('가드레일').item.json.prompt_version }}-{{ $('가드레일').item.json.template ?? '' }}",
+            "draft_hash": "={{ $('가드레일').item.json.draft_hash ?? '' }}",
+            "guardrail_result": "={{ $('가드레일').item.json.guardrail_result ?? '' }}",
+            "approver": "={{ $('가드레일').item.json.approver_email }}",
+            "decision": "blocked_guardrail",
+            "deny_reason": "",
+            "sent_at": "",
+            "message_id": "",
+            "alert_type": "dunning",
+            "tokens_in": "",
+            "tokens_out": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_kst",
+              "displayName": "timestamp_kst",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "learner_id",
+              "displayName": "learner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buyer_id",
+              "displayName": "buyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_no",
+              "displayName": "invoice_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "overdue_days",
+              "displayName": "overdue_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_grade",
+              "displayName": "risk_grade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "template_stage",
+              "displayName": "template_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_alias",
+              "displayName": "model_alias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_resolved",
+              "displayName": "model_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_hash",
+              "displayName": "draft_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guardrail_result",
+              "displayName": "guardrail_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approver",
+              "displayName": "approver",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deny_reason",
+              "displayName": "deny_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_type",
+              "displayName": "alert_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_in",
+              "displayName": "tokens_in",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_out",
+              "displayName": "tokens_out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a3732192-5689-5ef3-b467-853f1f8a89a5",
+      "name": "감사로그: 금지 문구·요소 차단",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2520,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('가드레일').item.json.approver_email }}",
+        "subject": "=[재작성 필요] {{ $('가드레일').item.json.stage_key }} {{ $('가드레일').item.json.invoice_id }}",
+        "emailType": "text",
+        "message": "=가드레일에 걸린 초안입니다(발송 경로 중단).\n{{ $('가드레일').item.json.checks_text }}\n\n제목: {{ $('가드레일').item.json.subject }}\n\n{{ $('가드레일').item.json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4548b55a-3282-5f68-a51e-8cb359bb2333",
+      "name": "재작성 필요 알림(내부)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2760,
+        260
+      ],
+      "webhookId": "13ebcbe8-0742-5c70-a61a-f140fa3420bc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "098a970b-79ab-5eeb-93e0-babc69a23f60",
+              "leftValue": "={{ $json.in_window }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5ad015c5-70e4-5dff-9ee3-6e60c52b9f82",
+      "name": "발송 시간창?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2520,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $now.setZone($json.send_tz).plus({days: $now.setZone($json.send_tz).hour >= 21 ? 1 : 0}).set({hour: 8, minute: 0, second: 0}) }}"
+      },
+      "id": "11f1d391-8dca-5a3f-8f61-45213da4daf8",
+      "name": "08:00까지 대기",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2760,
+        100
+      ],
+      "webhookId": "712f962d-4289-5abe-b994-20e62031297a"
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "value": "={{ $('가드레일').item.json.body }}",
+        "dataPropertyName": "draft_hash"
+      },
+      "id": "45af034e-07bb-5e6d-af24-01741876e407",
+      "name": "초안 해시",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        3000,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "={{ $('가드레일').item.json.approver_email }}",
+        "subject": "=[승인요청] {{ $('가드레일').item.json.stage_key }} {{ $('가드레일').item.json.invoice_id }} {{ $('가드레일').item.json.buyer_id }}",
+        "message": "=바이어: {{ $('가드레일').item.json.buyer_id }} {{ $('가드레일').item.json.buyer_name }} · 등급 {{ $('가드레일').item.json.grade }} · D+{{ $('가드레일').item.json.dpd }} · 미결 {{ $('가드레일').item.json.facts.currency }} {{ $('가드레일').item.json.facts.amount_ccy }} · 부보 {{ $('가드레일').item.json.insured }}\n사고발생통지 기한: {{ $('가드레일').item.json.ksure_notice_deadline || '해당 없음' }} (D-{{ $('가드레일').item.json.notice_days_left ?? '-' }})\n수신자(초안): {{ $('가드레일').item.json.recipient }}\n가드레일:\n{{ $('가드레일').item.json.checks_text }}\n\n한국어 요약: {{ $('가드레일').item.json.summary_ko }}\n\n제목: {{ $('가드레일').item.json.subject }}\n\n{{ $('가드레일').item.json.body }}\n\n승인하면 Gmail 임시보관함에 초안만 만든다(보내지 않음).",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "승인(초안 생성)",
+            "disapproveLabel": "반려"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "limitType": "afterTimeInterval",
+              "resumeAmount": 1,
+              "resumeUnit": "days"
+            }
+          }
+        }
+      },
+      "id": "8df645ec-2f4a-5e75-9daf-7039a721f2ca",
+      "name": "승인 요청 메일(검토자)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3240,
+        -40
+      ],
+      "webhookId": "e10fec86-e274-56ba-b0f1-98d138b20e52"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6391704b-b252-54a5-861e-3c5a411225c0",
+              "leftValue": "={{ $json.data.approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "11050331-6f86-566f-a328-b79c0c3539db",
+      "name": "승인?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3480,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "={{ $('가드레일').item.json.subject }}",
+        "emailType": "text",
+        "message": "={{ $('가드레일').item.json.body }}",
+        "options": {
+          "sendTo": "={{ $('가드레일').item.json.recipient }}"
+        }
+      },
+      "id": "a9d36799-1651-582e-97f4-ec23ef11ffb5",
+      "name": "Gmail 초안 만들기",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3720,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $execution.id }}-{{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.buyer_id }}",
+            "timestamp_kst": "={{ $now.setZone('Asia/Seoul').toFormat('yyyy-LL-dd HH:mm:ss') }}",
+            "learner_id": "={{ $('가드레일').item.json.learner_id }}",
+            "buyer_id": "={{ $('가드레일').item.json.buyer_id }}",
+            "invoice_no": "={{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.invoices }}",
+            "overdue_days": "={{ $('가드레일').item.json.dpd ?? '' }}",
+            "risk_grade": "={{ $('가드레일').item.json.grade ?? '' }}",
+            "template_stage": "={{ $('가드레일').item.json.stage_key ?? 'HUMAN' }}",
+            "model_alias": "={{ $('가드레일').item.json.model_alias }}",
+            "model_resolved": "",
+            "prompt_version": "={{ $('가드레일').item.json.prompt_version }}-{{ $('가드레일').item.json.template ?? '' }}",
+            "draft_hash": "={{ $('초안 해시').item.json.draft_hash }}",
+            "guardrail_result": "={{ $('가드레일').item.json.guardrail_result ?? '' }}",
+            "approver": "={{ $('가드레일').item.json.approver_email }}",
+            "decision": "approve",
+            "deny_reason": "",
+            "sent_at": "",
+            "message_id": "={{ $json.id }}",
+            "alert_type": "dunning",
+            "tokens_in": "",
+            "tokens_out": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_kst",
+              "displayName": "timestamp_kst",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "learner_id",
+              "displayName": "learner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buyer_id",
+              "displayName": "buyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_no",
+              "displayName": "invoice_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "overdue_days",
+              "displayName": "overdue_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_grade",
+              "displayName": "risk_grade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "template_stage",
+              "displayName": "template_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_alias",
+              "displayName": "model_alias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_resolved",
+              "displayName": "model_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_hash",
+              "displayName": "draft_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guardrail_result",
+              "displayName": "guardrail_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approver",
+              "displayName": "approver",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deny_reason",
+              "displayName": "deny_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_type",
+              "displayName": "alert_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_in",
+              "displayName": "tokens_in",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_out",
+              "displayName": "tokens_out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "23716981-ece5-58d0-a86a-968229c1bee4",
+      "name": "감사로그: 승인",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3960,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "AR_Ledger",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_id": "={{ $('가드레일').item.json.invoice_id }}",
+            "last_dunning_stage": "={{ $('가드레일').item.json.stage_no >= 4 ? 3 : $('가드레일').item.json.stage_no }}",
+            "last_dunning_date": "={{ $('가드레일').item.json.as_of }}",
+            "ship_hold": "={{ $('가드레일').item.json.stage_key === 'D30' || $('가드레일').item.json.stage_key === 'PRE' ? 'Y' : '' }}"
+          },
+          "matchingColumns": [
+            "invoice_id"
+          ],
+          "schema": [
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_dunning_stage",
+              "displayName": "last_dunning_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_dunning_date",
+              "displayName": "last_dunning_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ship_hold",
+              "displayName": "ship_hold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2aea410-9cf5-5f58-8a4b-2aa78e4ae1f6",
+      "name": "원장 갱신",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4200,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "eb85de63-8a41-5924-9e5b-207ad8b9bf1b",
+              "leftValue": "={{ $('가드레일').item.json.stage_key }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "D30"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "58ca60f1-a1a3-59b2-8730-d50510eb1bfe",
+      "name": "D+30?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4440,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('가드레일').item.json.approver_email }}",
+        "subject": "=[D+30 에스컬레이션] {{ $('가드레일').item.json.buyer_id }} {{ $('가드레일').item.json.invoice_id }}",
+        "emailType": "text",
+        "message": "=D+30 최종 통지 초안 승인 · 선적 보류(ship_hold = Y) · 한도 동결 제안(사람 검토).\nK-SURE 사고발생통지 기한 = 결제기일 + 1개월: {{ $('가드레일').item.json.ksure_notice_deadline || '부보 아님' }} — 통지 여부는 사람이 결정한다.\n바이어: {{ $('가드레일').item.json.buyer_id }} {{ $('가드레일').item.json.buyer_name }} · D+{{ $('가드레일').item.json.dpd }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "edaf1de7-1b36-5026-97c4-e66d3f99c4a8",
+      "name": "에스컬레이션 알림(내부)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4680,
+        -140
+      ],
+      "webhookId": "d8d07ab9-efb6-5689-baf1-ca21090ebd7a"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "TF_AR_Ledger"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $execution.id }}-{{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.buyer_id }}",
+            "timestamp_kst": "={{ $now.setZone('Asia/Seoul').toFormat('yyyy-LL-dd HH:mm:ss') }}",
+            "learner_id": "={{ $('가드레일').item.json.learner_id }}",
+            "buyer_id": "={{ $('가드레일').item.json.buyer_id }}",
+            "invoice_no": "={{ $('가드레일').item.json.invoice_id || $('가드레일').item.json.invoices }}",
+            "overdue_days": "={{ $('가드레일').item.json.dpd ?? '' }}",
+            "risk_grade": "={{ $('가드레일').item.json.grade ?? '' }}",
+            "template_stage": "={{ $('가드레일').item.json.stage_key ?? 'HUMAN' }}",
+            "model_alias": "={{ $('가드레일').item.json.model_alias }}",
+            "model_resolved": "",
+            "prompt_version": "={{ $('가드레일').item.json.prompt_version }}-{{ $('가드레일').item.json.template ?? '' }}",
+            "draft_hash": "={{ $('가드레일').item.json.draft_hash ?? '' }}",
+            "guardrail_result": "={{ $('가드레일').item.json.guardrail_result ?? '' }}",
+            "approver": "={{ $('가드레일').item.json.approver_email }}",
+            "decision": "deny",
+            "deny_reason": "",
+            "sent_at": "",
+            "message_id": "",
+            "alert_type": "dunning",
+            "tokens_in": "",
+            "tokens_out": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_kst",
+              "displayName": "timestamp_kst",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "learner_id",
+              "displayName": "learner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buyer_id",
+              "displayName": "buyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_no",
+              "displayName": "invoice_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "overdue_days",
+              "displayName": "overdue_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_grade",
+              "displayName": "risk_grade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "template_stage",
+              "displayName": "template_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_alias",
+              "displayName": "model_alias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_resolved",
+              "displayName": "model_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_hash",
+              "displayName": "draft_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guardrail_result",
+              "displayName": "guardrail_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approver",
+              "displayName": "approver",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deny_reason",
+              "displayName": "deny_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_type",
+              "displayName": "alert_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_in",
+              "displayName": "tokens_in",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tokens_out",
+              "displayName": "tokens_out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2784e330-7af4-5d79-b761-68a6cabb8741",
+      "name": "감사로그: 반려",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3720,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 가드레일(앱 core/guardrails.py와 같은 규칙)\n① 금지 표현(법적 절차·국가기관·위협, 계좌 변경 문구) ② 필수 요소 ③ 180단어 ④ 수신자 화이트리스트(Config whitelist_regex) → 하나라도 실패하면 발송 경로 중단 + 감사로그.\n⑤ 발송 시간창(현지 08–21시) 밖이면 08:00까지 대기.",
+        "width": 520,
+        "height": 200,
+        "color": 6
+      },
+      "id": "1547cb56-78c4-58df-8d40-e5dbd6b54ad8",
+      "name": "메모: 가드레일",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "평일 09:00": {
+      "main": [
+        [
+          {
+            "node": "Config 읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "수동 실행(수업)": {
+      "main": [
+        [
+          {
+            "node": "Config 읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config 읽기": {
+      "main": [
+        [
+          {
+            "node": "AR_Ledger 읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AR_Ledger 읽기": {
+      "main": [
+        [
+          {
+            "node": "단계 판정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "단계 판정": {
+      "main": [
+        [
+          {
+            "node": "사람 처리?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "사람 처리?": {
+      "main": [
+        [
+          {
+            "node": "사람 처리 알림(내부)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "화이트리스트?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "사람 처리 알림(내부)": {
+      "main": [
+        [
+          {
+            "node": "감사로그: 사람 처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "화이트리스트?": {
+      "main": [
+        [
+          {
+            "node": "단계 분기",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "감사로그: 수신자 차단",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "단계 분기": {
+      "main": [
+        [
+          {
+            "node": "초안 T4 이관 사전 통지",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "초안 T3 D+30 최종 통지",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "초안 T2 D+15 단호한 통지",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "초안 T1 D+7 리마인더",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "초안 T0 D-3 사전 안내",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "대상 아님",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 T4 이관 사전 통지": {
+      "main": [
+        [
+          {
+            "node": "가드레일",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM 모델 PRE": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "초안 T4 이관 사전 통지",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 T3 D+30 최종 통지": {
+      "main": [
+        [
+          {
+            "node": "가드레일",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM 모델 D30": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "초안 T3 D+30 최종 통지",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 T2 D+15 단호한 통지": {
+      "main": [
+        [
+          {
+            "node": "가드레일",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM 모델 D15": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "초안 T2 D+15 단호한 통지",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 T1 D+7 리마인더": {
+      "main": [
+        [
+          {
+            "node": "가드레일",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM 모델 D7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "초안 T1 D+7 리마인더",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 T0 D-3 사전 안내": {
+      "main": [
+        [
+          {
+            "node": "가드레일",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM 모델 DM3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "초안 T0 D-3 사전 안내",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "가드레일": {
+      "main": [
+        [
+          {
+            "node": "가드레일 통과?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "가드레일 통과?": {
+      "main": [
+        [
+          {
+            "node": "발송 시간창?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "감사로그: 금지 문구·요소 차단",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "감사로그: 금지 문구·요소 차단": {
+      "main": [
+        [
+          {
+            "node": "재작성 필요 알림(내부)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "발송 시간창?": {
+      "main": [
+        [
+          {
+            "node": "초안 해시",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08:00까지 대기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08:00까지 대기": {
+      "main": [
+        [
+          {
+            "node": "초안 해시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 해시": {
+      "main": [
+        [
+          {
+            "node": "승인 요청 메일(검토자)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "승인 요청 메일(검토자)": {
+      "main": [
+        [
+          {
+            "node": "승인?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "승인?": {
+      "main": [
+        [
+          {
+            "node": "Gmail 초안 만들기",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "감사로그: 반려",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail 초안 만들기": {
+      "main": [
+        [
+          {
+            "node": "감사로그: 승인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "감사로그: 승인": {
+      "main": [
+        [
+          {
+            "node": "원장 갱신",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "원장 갱신": {
+      "main": [
+        [
+          {
+            "node": "D+30?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D+30?": {
+      "main": [
+        [
+          {
+            "node": "에스컬레이션 알림(내부)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

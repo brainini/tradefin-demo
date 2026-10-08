@@ -1,0 +1,23 @@
+# 팀 솔루션 킷 저장소 — 공개 저장소 기본값
+# 주의: GitHub 웹 화면의 'Upload files'는 이 설정과 관계없이 올린다. 올리기 전에 파일을 직접 확인한다.
+
+# 비밀값 — 키는 Streamlit Community Cloud의 Secrets 칸에만 넣는다
+secrets.toml
+.streamlit/secrets.toml
+.env
+.env.*
+
+# 자사 자료 · 개인 파일 — 이 저장소에는 가상 데이터만 둔다
+private/
+*_private*
+
+# 실행 산출물
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# 엑셀·워드를 연 채로 생기는 임시 파일, 운영체제 파일
+~$*
+.~lock.*
+.DS_Store
+Thumbs.db

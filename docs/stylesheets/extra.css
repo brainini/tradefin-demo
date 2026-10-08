@@ -1,0 +1,88 @@
+/* 과정 사이트 보조 스타일 — 한국어 가독성 위주 (색은 Material 테마 변수를 그대로 써서 밝은/어두운 화면 모두 맞춘다) */
+
+/* 한국어 문장은 낱말(어절) 중간에서 줄을 바꾸지 않는다. 긴 영문·주소는 넘치지 않게 끊는다 */
+.md-typeset {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 코드·프롬프트 블록: 가로 스크롤 대신 줄바꿈해서 보여 준다(복사할 때는 원래 줄 그대로 복사된다) */
+.md-typeset pre > code {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 표 안의 긴 파일명·수식 */
+.md-typeset table:not([class]) code {
+  word-break: break-all;
+}
+
+/* 표 머리글이 좁은 화면에서 한 글자씩 꺾이지 않게 */
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+/* 번호 단계 사이 간격을 조금 넓혀 '한 단계 = 한 동작'이 눈에 보이게 */
+.md-typeset ol > li {
+  margin-bottom: 0.35em;
+}
+
+/* 빈칸 채우기 표시 {회사명} 같은 자리 */
+.md-typeset .fill {
+  padding: 0 0.25em;
+  border-radius: 0.2em;
+  background-color: var(--md-accent-fg-color--transparent);
+  font-weight: 600;
+}
+
+/* 코드 글꼴의 합자(ligature) 끄기 — 예: 엑셀 수식의 <= 가 ≤ 한 글자처럼 보여 손으로 옮겨 적을 때 틀리지 않게 */
+.md-typeset code,
+.md-typeset pre,
+.md-typeset kbd {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+}
+
+/* 코드 블록 오른쪽 위 복사 버튼과 줄바꿈된 글자가 겹치지 않게 */
+.md-typeset .highlight pre > code {
+  padding-right: 2.8em;
+}
+
+/* 그림 자리 — 이미지가 들어갈 곳(IMG 키와 무엇을 보여 줄지). 이미지가 들어오면 캡션으로 바뀐다 */
+.md-typeset .img-slot {
+  margin: 1em 0;
+  padding: 0.7em 1em;
+  border: 2px dashed var(--md-default-fg-color--lighter);
+  border-radius: 0.4rem;
+  background-color: var(--md-code-bg-color);
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .img-slot > :first-child { margin-top: 0; }
+.md-typeset .img-slot > :last-child { margin-bottom: 0; }
+
+/* 사례 칩 3종 — 색만이 아니라 글자([ ] 안의 말)로도 구분한다
+   공개 사례 = 파랑 테두리 · 현장 사례 = 회청색 면 · 가상 예시 = 점선 · 기초 트랙 = 옅은 강조 */
+.md-typeset .chip {
+  display: inline-block;
+  padding: 0 0.55em;
+  border: 1px solid transparent;
+  border-radius: 1em;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.md-typeset .chip--public {
+  border-color: var(--md-primary-fg-color);
+  color: var(--md-primary-fg-color);
+}
+.md-typeset .chip--field {
+  background-color: rgba(96, 125, 139, 0.22);
+}
+.md-typeset .chip--virtual {
+  border: 1px dashed currentColor;
+}
+.md-typeset .chip--f {
+  background-color: var(--md-accent-fg-color--transparent);
+}
