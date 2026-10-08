@@ -2,7 +2,6 @@ name: d4-ews
 on:
   push:                     # 임시 - 병합 전 리허설용(병합 전에 지운다)
     branches: [d4-ews]
-    paths: [".github/workflows/d4-ews.yml"]
   schedule:
     - cron: "0 0 * * 1-5"    # 평일 9시 KST
     - cron: "17 7 19 10 *"   # 오늘 16:17 KST
