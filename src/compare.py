@@ -78,15 +78,11 @@ def main() -> int:
     print("\n".join(lines))
 
     # Actions 화면의 Annotations 칸(로그인 없이도 보인다)에 결과를 남긴다: 실패한 게이트마다 한 줄, 그리고 기준 → 이 PR 네 지표
-    for r in reasons:
+    for r in reversed(reasons):             # 화면에는 거꾸로 쌓이므로 거꾸로 내보낸다(표 순서대로 보이게)
         annotate("error", "품질 게이트 실패", r)
-    table = [
-        f"ROC-AUC {base['roc_auc']:.4f} → {new['roc_auc']:.4f} (참고)",
-        f"PR-AUC {base['pr_auc']:.4f} → {new['pr_auc']:.4f} ({'통과' if ok['pr_auc'] else '실패'})",
-        f"Brier {base['brier']:.4f} → {new['brier']:.4f} ({'통과' if ok['brier'] else '실패'})",
-        f"비용 {base['cost']} → {new['cost']} ({'통과' if ok['cost'] else '실패'})",
-    ]
-    annotate("notice", "기준(main) → 이 PR", "\n".join(table))
+    table = (f"ROC-AUC {base['roc_auc']:.4f} → {new['roc_auc']:.4f} · PR-AUC {base['pr_auc']:.4f} → {new['pr_auc']:.4f} · "
+             f"Brier {base['brier']:.4f} → {new['brier']:.4f} · 비용 {base['cost']} → {new['cost']}")
+    annotate("notice", "기준(main) → 이 PR", table)
     return 0 if passed else 1
 
 
